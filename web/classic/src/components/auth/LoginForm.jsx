@@ -67,6 +67,8 @@ import TwoFAVerification from './TwoFAVerification';
 import { useTranslation } from 'react-i18next';
 import { SiDiscord } from 'react-icons/si';
 
+const normalizeInviteCode = (value = '') => value.trim().toUpperCase();
+
 const LoginForm = () => {
   let navigate = useNavigate();
   const { t } = useTranslation();
@@ -78,6 +80,7 @@ const LoginForm = () => {
   const [inputs, setInputs] = useState({
     username: '',
     password: '',
+    invite_code: normalizeInviteCode(localStorage.getItem('invite_code') || ''),
     wechat_verification_code: '',
   });
   const { username, password } = inputs;
@@ -155,6 +158,23 @@ const LoginForm = () => {
   }, [status]);
 
   useEffect(() => {
+    const inviteCode = normalizeInviteCode(
+      new URLSearchParams(window.location.search).get('invite_code') ||
+        localStorage.getItem('invite_code') ||
+        '',
+    );
+    if (!inviteCode) {
+      return;
+    }
+    localStorage.setItem('invite_code', inviteCode);
+    setInputs((prev) =>
+      prev.invite_code === inviteCode
+        ? prev
+        : { ...prev, invite_code: inviteCode },
+    );
+  }, []);
+
+  useEffect(() => {
     isPasskeySupported()
       .then(setPasskeySupported)
       .catch(() => setPasskeySupported(false));
@@ -190,7 +210,11 @@ const LoginForm = () => {
     setWechatCodeSubmitLoading(true);
     try {
       const res = await API.get(
-        `/api/oauth/wechat?code=${inputs.wechat_verification_code}`,
+        `/api/oauth/wechat?code=${encodeURIComponent(inputs.wechat_verification_code)}${
+          inputs.invite_code
+            ? `&invite_code=${encodeURIComponent(inputs.invite_code)}`
+            : ''
+        }`,
       );
       const { success, message, data } = res.data;
       if (success) {
@@ -212,7 +236,16 @@ const LoginForm = () => {
   };
 
   function handleChange(name, value) {
-    setInputs((inputs) => ({ ...inputs, [name]: value }));
+    const nextValue =
+      name === 'invite_code' ? normalizeInviteCode(value || '') : value;
+    setInputs((inputs) => ({ ...inputs, [name]: nextValue }));
+    if (name === 'invite_code') {
+      if (nextValue) {
+        localStorage.setItem('invite_code', nextValue);
+      } else {
+        localStorage.removeItem('invite_code');
+      }
+    }
   }
 
   async function handleSubmit(e) {
@@ -497,7 +530,12 @@ const LoginForm = () => {
   // 返回登录页面
   const handleBackToLogin = () => {
     setShowTwoFA(false);
-    setInputs({ username: '', password: '', wechat_verification_code: '' });
+    setInputs((prev) => ({
+      username: '',
+      password: '',
+      invite_code: prev.invite_code,
+      wechat_verification_code: '',
+    }));
   };
 
   const renderOAuthOptions = () => {
@@ -519,6 +557,22 @@ const LoginForm = () => {
             </div>
             <div className='px-2 py-8'>
               <div className='space-y-3'>
+                {status.invite_code_register_enabled && (
+                  <div className='mb-2'>
+                    <Form.Input
+                      field='invite_code'
+                      label={t('邀请码')}
+                      placeholder={t('仅首次第三方注册时需要，可直接粘贴机器人私聊给你的邀请码')}
+                      name='invite_code'
+                      value={inputs.invite_code}
+                      onChange={(value) => handleChange('invite_code', value)}
+                      prefix={<IconKey />}
+                    />
+                    <Text type='secondary' size='small'>
+                      {t('已有账号可直接登录；首次第三方注册时会校验邀请码')}
+                    </Text>
+                  </div>
+                )}
                 {status.wechat_login && (
                   <Button
                     theme='outline'

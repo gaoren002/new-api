@@ -81,6 +81,9 @@ const SystemSetting = () => {
     TurnstileSiteKey: '',
     TurnstileSecretKey: '',
     RegisterEnabled: '',
+    InviteCodeRegisterEnabled: '',
+    InviteCodeExpireMinutes: 30,
+    InviteBotSecret: '',
     'passkey.enabled': '',
     'passkey.rp_display_name': '',
     'passkey.rp_id': '',
@@ -180,6 +183,7 @@ const SystemSetting = () => {
           case 'WeChatAuthEnabled':
           case 'TelegramOAuthEnabled':
           case 'RegisterEnabled':
+          case 'InviteCodeRegisterEnabled':
           case 'TurnstileCheckEnabled':
           case 'EmailDomainRestrictionEnabled':
           case 'EmailAliasRestrictionEnabled':
@@ -210,6 +214,7 @@ const SystemSetting = () => {
             break;
           case 'Price':
           case 'MinTopUp':
+          case 'InviteCodeExpireMinutes':
             item.value = parseFloat(item.value);
             break;
           default:
@@ -319,6 +324,26 @@ const SystemSetting = () => {
   const submitServerAddress = async () => {
     let ServerAddress = removeTrailingSlash(inputs.ServerAddress);
     await updateOptions([{ key: 'ServerAddress', value: ServerAddress }]);
+  };
+
+  const submitInviteCodeSettings = async () => {
+    const options = [
+      {
+        key: 'InviteCodeRegisterEnabled',
+        value: inputs.InviteCodeRegisterEnabled ? 'true' : 'false',
+      },
+      {
+        key: 'InviteCodeExpireMinutes',
+        value: String(inputs.InviteCodeExpireMinutes || 30),
+      },
+    ];
+    if (inputs.InviteBotSecret !== '') {
+      options.push({
+        key: 'InviteBotSecret',
+        value: inputs.InviteBotSecret,
+      });
+    }
+    await updateOptions(options);
   };
 
   const submitSMTP = async () => {
@@ -1062,6 +1087,15 @@ const SystemSetting = () => {
                         {t('允许新用户注册')}
                       </Form.Checkbox>
                       <Form.Checkbox
+                        field='InviteCodeRegisterEnabled'
+                        noLabel
+                        onChange={(e) =>
+                          handleCheckboxChange('InviteCodeRegisterEnabled', e)
+                        }
+                      >
+                        {t('开启邀请码注册')}
+                      </Form.Checkbox>
+                      <Form.Checkbox
                         field='TurnstileCheckEnabled'
                         noLabel
                         onChange={(e) =>
@@ -1128,6 +1162,37 @@ const SystemSetting = () => {
                       </Form.Checkbox>
                     </Col>
                   </Row>
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                    style={{ marginTop: 16 }}
+                  >
+                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                      <Form.Input
+                        field='InviteCodeExpireMinutes'
+                        label={t('邀请码有效期（分钟）')}
+                        placeholder={t('默认 30')}
+                        extraText={t('QQ 机器人签发的邀请码在过期前会复用同一用户的未使用邀请码')}
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                      <Form.Input
+                        field='InviteBotSecret'
+                        label={t('邀请码机器人密钥')}
+                        placeholder={t('留空则机器人发码接口禁用')}
+                        extraText={t('QQ 机器人调用 POST /api/invite/bot/issue 时使用')}
+                      />
+                    </Col>
+                  </Row>
+                  <Banner
+                    type='warning'
+                    description={t(
+                      '开启后，密码注册、微信注册、首次 OAuth 注册都需要邀请码。QQ 机器人可调用 POST /api/invite/bot/issue 签发一次性邀请码。',
+                    )}
+                    style={{ marginTop: 16 }}
+                  />
+                  <Button onClick={submitInviteCodeSettings} style={{ marginTop: 16 }}>
+                    {t('更新邀请码注册设置')}
+                  </Button>
                 </Form.Section>
               </Card>
 

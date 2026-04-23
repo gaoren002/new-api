@@ -25,9 +25,11 @@ func GenerateOAuthCode(c *gin.Context) {
 	session := sessions.Default(c)
 	state := common.GetRandomString(12)
 	affCode := c.Query("aff")
+	inviteCode := c.Query("invite_code")
 	if affCode != "" {
 		session.Set("aff", affCode)
 	}
+	persistInviteCodeToSession(session, inviteCode)
 	session.Set("oauth_state", state)
 	err := session.Save()
 	if err != nil {
@@ -277,6 +279,7 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 
 	// Handle affiliate code
 	affCode := session.Get("aff")
+	inviteCode := getInviteCodeFromSession(session)
 	inviterId := 0
 	if affCode != nil {
 		inviterId, _ = model.GetUserIdByAffCode(affCode.(string))
@@ -288,6 +291,9 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 		err := model.DB.Transaction(func(tx *gorm.DB) error {
 			// Create user
 			if err := user.InsertWithTx(tx, inviterId); err != nil {
+				return err
+			}
+			if err := consumeInviteCodeIfNeededTx(tx, inviteCode, user); err != nil {
 				return err
 			}
 
@@ -316,6 +322,9 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 			if err := user.InsertWithTx(tx, inviterId); err != nil {
 				return err
 			}
+			if err := consumeInviteCodeIfNeededTx(tx, inviteCode, user); err != nil {
+				return err
+			}
 
 			// Set the provider user ID on the user model and update
 			provider.SetProviderUserID(user, oauthUser.ProviderUserID)
@@ -339,6 +348,9 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 		// Perform post-transaction tasks
 		user.FinalizeOAuthUserCreation(inviterId)
 	}
+
+	persistInviteCodeToSession(session, "")
+	_ = session.Save()
 
 	return user, nil
 }
