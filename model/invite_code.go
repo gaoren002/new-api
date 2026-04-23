@@ -53,16 +53,32 @@ func generateInviteCodeValue(length int) (string, error) {
 	return "", errors.New("生成邀请码失败，请稍后重试")
 }
 
-func findReusableInviteCode(source string, issuedTo string, groupId string, now int64) (*InviteCode, error) {
+func findUsedInviteCode(source string, issuedTo string) (*InviteCode, error) {
+	if issuedTo == "" {
+		return nil, nil
+	}
+	var invite InviteCode
+	err := DB.Where("source = ? AND issued_to = ? AND used_at > 0", source, issuedTo).
+		Order("id desc").
+		First(&invite).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &invite, nil
+}
+
+func findActiveUnusedInviteCode(source string, issuedTo string, now int64) (*InviteCode, error) {
 	if issuedTo == "" {
 		return nil, nil
 	}
 	var invite InviteCode
 	err := DB.Where(
-		"source = ? AND issued_to = ? AND group_id = ? AND disabled = ? AND used_at = 0 AND expires_at > ?",
+		"source = ? AND issued_to = ? AND disabled = ? AND used_at = 0 AND (expires_at = 0 OR expires_at > ?)",
 		source,
 		issuedTo,
-		groupId,
 		false,
 		now,
 	).Order("id desc").First(&invite).Error
@@ -75,18 +91,48 @@ func findReusableInviteCode(source string, issuedTo string, groupId string, now 
 	return &invite, nil
 }
 
+func duplicateInviteIssueError(source string, reason string) error {
+	if source == "qq" {
+		switch reason {
+		case "used":
+			return errors.New("该QQ已使用过邀请码，不可重复申请")
+		case "active":
+			return errors.New("该QQ已有有效邀请码，请勿重复申请")
+		}
+		return errors.New("该QQ不可重复申请邀请码")
+	}
+	switch reason {
+	case "used":
+		return errors.New("该账号已使用过邀请码，不可重复申请")
+	case "active":
+		return errors.New("该账号已有有效邀请码，请勿重复申请")
+	}
+	return errors.New("该账号不可重复申请邀请码")
+}
+
 func IssueInviteCode(source string, issuedTo string, groupId string, note string, expiresInMinutes int) (*InviteCode, error) {
 	source = strings.TrimSpace(source)
 	if source == "" {
 		source = "qq"
 	}
+	issuedTo = strings.TrimSpace(issuedTo)
+	groupId = strings.TrimSpace(groupId)
+	note = strings.TrimSpace(note)
 	now := common.GetTimestamp()
-	reusable, err := findReusableInviteCode(source, strings.TrimSpace(issuedTo), strings.TrimSpace(groupId), now)
+	usedInvite, err := findUsedInviteCode(source, issuedTo)
 	if err != nil {
 		return nil, err
 	}
-	if reusable != nil {
-		return reusable, nil
+	if usedInvite != nil {
+		return nil, duplicateInviteIssueError(source, "used")
+	}
+
+	activeInvite, err := findActiveUnusedInviteCode(source, issuedTo, now)
+	if err != nil {
+		return nil, err
+	}
+	if activeInvite != nil {
+		return nil, duplicateInviteIssueError(source, "active")
 	}
 
 	code, err := generateInviteCodeValue(defaultInviteCodeLength)
@@ -101,9 +147,9 @@ func IssueInviteCode(source string, issuedTo string, groupId string, note string
 	invite := &InviteCode{
 		Code:      code,
 		Source:    source,
-		IssuedTo:  strings.TrimSpace(issuedTo),
-		GroupId:   strings.TrimSpace(groupId),
-		Note:      strings.TrimSpace(note),
+		IssuedTo:  issuedTo,
+		GroupId:   groupId,
+		Note:      note,
 		CreatedAt: now,
 		ExpiresAt: now + int64(ttl)*60,
 	}
