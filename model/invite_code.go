@@ -132,7 +132,7 @@ func IssueInviteCode(source string, issuedTo string, groupId string, note string
 		return nil, err
 	}
 	if activeInvite != nil {
-		return nil, duplicateInviteIssueError(source, "active")
+		return activeInvite, nil
 	}
 
 	code, err := generateInviteCodeValue(defaultInviteCodeLength)

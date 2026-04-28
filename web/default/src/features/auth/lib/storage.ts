@@ -27,6 +27,7 @@ For commercial licensing, please contact support@quantumnous.com
 const STORAGE_KEYS = {
   USER_ID: 'uid',
   AFFILIATE: 'aff',
+  INVITE_CODE: 'invite_code',
   STATUS: 'status',
 } as const
 
@@ -102,5 +103,69 @@ export function saveAffiliateCode(code: string): void {
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Failed to save affiliate code:', error)
+  }
+}
+
+// ============================================================================
+// Invite Code Storage
+// ============================================================================
+
+export function normalizeInviteCode(value = ''): string {
+  return value.trim().toUpperCase()
+}
+
+export function getInviteCode(): string {
+  if (typeof window === 'undefined') return ''
+  try {
+    return normalizeInviteCode(
+      window.localStorage.getItem(STORAGE_KEYS.INVITE_CODE) ?? ''
+    )
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to get invite code:', error)
+    return ''
+  }
+}
+
+export function saveInviteCode(code: string): void {
+  if (typeof window === 'undefined') return
+  const normalizedCode = normalizeInviteCode(code)
+  try {
+    if (normalizedCode) {
+      window.localStorage.setItem(STORAGE_KEYS.INVITE_CODE, normalizedCode)
+    } else {
+      window.localStorage.removeItem(STORAGE_KEYS.INVITE_CODE)
+    }
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to save invite code:', error)
+  }
+}
+
+export function removeInviteCode(): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.removeItem(STORAGE_KEYS.INVITE_CODE)
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to remove invite code:', error)
+  }
+}
+
+export function captureInviteCodeFromUrl(): string {
+  if (typeof window === 'undefined') return ''
+  try {
+    const inviteCode =
+      new URLSearchParams(window.location.search).get('invite_code') ||
+      getInviteCode()
+    const normalizedCode = normalizeInviteCode(inviteCode)
+    if (normalizedCode) {
+      saveInviteCode(normalizedCode)
+    }
+    return normalizedCode
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to capture invite code:', error)
+    return getInviteCode()
   }
 }

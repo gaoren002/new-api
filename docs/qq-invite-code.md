@@ -14,6 +14,7 @@
    - 首次 OAuth 注册需要邀请码
 2. 提供机器人发码接口：
    - `POST /api/invite/bot/issue`
+   - 同一 QQ 已有未过期、未使用邀请码时，接口直接返回已有邀请码，不重复生成新码
 3. 机器人接口返回：
    - `code`
    - `expires_at`
@@ -91,6 +92,8 @@ curl -X POST 'https://your-domain/api/invite/bot/issue' \
 
 1. 判断 `group_id` 是否在白名单
 2. 调用 `/api/invite/bot/issue`
+   - 如果该 QQ 已有未过期、未使用的邀请码，接口会返回同一个邀请码，用于重复私聊发送
+   - 如果该 QQ 已使用过邀请码，接口会拒绝再次签发
 3. 私聊用户：
 
 ```text

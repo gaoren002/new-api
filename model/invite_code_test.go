@@ -67,7 +67,7 @@ func TestIssueInviteCode_RejectsRepeatIssueAfterUsedInvite(t *testing.T) {
 	assert.Nil(t, invite)
 }
 
-func TestIssueInviteCode_RejectsRepeatIssueWhenActiveInviteExists(t *testing.T) {
+func TestIssueInviteCode_ReusesActiveInviteWhenActiveInviteExists(t *testing.T) {
 	truncateTables(t)
 
 	now := common.GetTimestamp()
@@ -83,6 +83,11 @@ func TestIssueInviteCode_RejectsRepeatIssueWhenActiveInviteExists(t *testing.T) 
 	require.NoError(t, DB.Create(existing).Error)
 
 	invite, err := IssueInviteCode("qq", "2468888866", "1031435539", "group keyword: 邀请码", 30)
-	require.ErrorContains(t, err, "该QQ已有有效邀请码，请勿重复申请")
-	assert.Nil(t, invite)
+	require.NoError(t, err)
+	require.NotNil(t, invite)
+	assert.Equal(t, existing.Code, invite.Code)
+
+	var count int64
+	require.NoError(t, DB.Model(&InviteCode{}).Where("source = ? AND issued_to = ?", "qq", "2468888866").Count(&count).Error)
+	assert.EqualValues(t, 1, count)
 }
