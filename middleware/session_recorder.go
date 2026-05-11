@@ -20,6 +20,7 @@ import (
 
 const (
 	defaultSessionRecorderQueueSize         = 1024
+	defaultSessionRecorderWorkers           = 1
 	defaultSessionRecorderMaxCapturedBytes  = 1 << 20
 	defaultSessionRecorderRequestTimeoutSec = 3
 )
@@ -33,6 +34,7 @@ type sessionRecorderClient struct {
 	endpoint         string
 	nodeName         string
 	maxCapturedBytes int64
+	workers          int
 	queue            chan sessionRecordPayload
 	httpClient       *http.Client
 	enabled          bool
@@ -104,6 +106,7 @@ func newSessionRecorderClient() *sessionRecorderClient {
 		endpoint:         endpoint,
 		nodeName:         firstNonEmpty(strings.TrimSpace(common.NodeName), strings.TrimSpace(common.GetEnvOrDefaultString("NODE_NAME", "")), "new-api"),
 		maxCapturedBytes: int64(common.GetEnvOrDefault("SESSION_RECORDER_MAX_CAPTURED_BYTES", defaultSessionRecorderMaxCapturedBytes)),
+		workers:          maxSessionRecorderInt(1, common.GetEnvOrDefault("SESSION_RECORDER_WORKERS", defaultSessionRecorderWorkers)),
 		queue:            make(chan sessionRecordPayload, common.GetEnvOrDefault("SESSION_RECORDER_QUEUE_SIZE", defaultSessionRecorderQueueSize)),
 		httpClient: &http.Client{
 			Timeout: time.Duration(common.GetEnvOrDefault("SESSION_RECORDER_TIMEOUT_SECONDS", defaultSessionRecorderRequestTimeoutSec)) * time.Second,
@@ -111,7 +114,9 @@ func newSessionRecorderClient() *sessionRecorderClient {
 	}
 	client.enabled = endpoint != ""
 	if client.enabled {
-		go client.worker()
+		for i := 0; i < client.workers; i++ {
+			go client.worker()
+		}
 	}
 	return client
 }
@@ -621,4 +626,11 @@ func normalizeSessionRecorderEndpoint(endpoint string) string {
 		parsed.Path = "/record"
 	}
 	return parsed.String()
+}
+
+func maxSessionRecorderInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
