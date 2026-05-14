@@ -49,6 +49,7 @@ func GetStatus(c *gin.Context) {
 
 	passkeySetting := system_setting.GetPasskeySettings()
 	legalSetting := system_setting.GetLegalSettings()
+	dataConsentSetting := operation_setting.GetDataConsentSetting()
 
 	data := gin.H{
 		"version":                      common.Version,
@@ -109,20 +110,24 @@ func GetStatus(c *gin.Context) {
 		"HeaderNavModules":    common.OptionMap["HeaderNavModules"],
 		"SidebarModulesAdmin": common.OptionMap["SidebarModulesAdmin"],
 
-		"oidc_enabled":                system_setting.GetOIDCSettings().Enabled,
-		"oidc_client_id":              system_setting.GetOIDCSettings().ClientId,
-		"oidc_authorization_endpoint": system_setting.GetOIDCSettings().AuthorizationEndpoint,
-		"passkey_login":               passkeySetting.Enabled,
-		"passkey_display_name":        passkeySetting.RPDisplayName,
-		"passkey_rp_id":               passkeySetting.RPID,
-		"passkey_origins":             passkeySetting.Origins,
-		"passkey_allow_insecure":      passkeySetting.AllowInsecureOrigin,
-		"passkey_user_verification":   passkeySetting.UserVerification,
-		"passkey_attachment":          passkeySetting.AttachmentPreference,
-		"setup":                       constant.Setup,
-		"user_agreement_enabled":      legalSetting.UserAgreement != "",
-		"privacy_policy_enabled":      legalSetting.PrivacyPolicy != "",
-		"checkin_enabled":             operation_setting.GetCheckinSetting().Enabled,
+		"oidc_enabled":                     system_setting.GetOIDCSettings().Enabled,
+		"oidc_client_id":                   system_setting.GetOIDCSettings().ClientId,
+		"oidc_authorization_endpoint":      system_setting.GetOIDCSettings().AuthorizationEndpoint,
+		"passkey_login":                    passkeySetting.Enabled,
+		"passkey_display_name":             passkeySetting.RPDisplayName,
+		"passkey_rp_id":                    passkeySetting.RPID,
+		"passkey_origins":                  passkeySetting.Origins,
+		"passkey_allow_insecure":           passkeySetting.AllowInsecureOrigin,
+		"passkey_user_verification":        passkeySetting.UserVerification,
+		"passkey_attachment":               passkeySetting.AttachmentPreference,
+		"setup":                            constant.Setup,
+		"user_agreement_enabled":           legalSetting.UserAgreement != "",
+		"privacy_policy_enabled":           legalSetting.PrivacyPolicy != "",
+		"checkin_enabled":                  operation_setting.GetCheckinSetting().Enabled,
+		"data_consent_enabled":             dataConsentSetting.Enabled,
+		"data_consent_agreement_version":   operation_setting.GetDataConsentAgreementVersion(),
+		"data_consent_accepted_multiplier": operation_setting.GetDataConsentAcceptedMultiplier(),
+		"data_consent_declined_multiplier": operation_setting.GetDataConsentDeclinedMultiplier(),
 	}
 
 	// 根据启用状态注入可选内容

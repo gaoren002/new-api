@@ -119,6 +119,8 @@ func ChargeViolationFeeIfNeeded(ctx *gin.Context, relayInfo *relaycommon.RelayIn
 
 	groupRatio := relayInfo.PriceData.GroupRatioInfo.GroupRatio
 	feeQuota := calcViolationFeeQuota(settings.ViolationDeductionAmount, groupRatio)
+	dataConsentInfo := DataConsentStateForRelayInfo(relayInfo)
+	feeQuota = ApplyDataConsentMultiplierByInfo(feeQuota, dataConsentInfo)
 	if feeQuota <= 0 {
 		return false
 	}
@@ -146,6 +148,11 @@ func ChargeViolationFeeIfNeeded(ctx *gin.Context, relayInfo *relaycommon.RelayIn
 		"upstream_error_code":  fmt.Sprintf("%v", oai.Code),
 		"violation_fee_marker": CSAMViolationMarker,
 	}
+	other["data_consent_enabled"] = dataConsentInfo.Enabled
+	other["data_consent_status"] = dataConsentInfo.Status
+	other["data_consent_authorized"] = dataConsentInfo.Authorized
+	other["data_consent_price_multiplier"] = dataConsentInfo.Multiplier
+	other["data_consent_agreement_version"] = dataConsentInfo.AgreementVersion
 
 	model.RecordConsumeLog(ctx, relayInfo.UserId, model.RecordConsumeLogParams{
 		ChannelId:      relayInfo.ChannelId,

@@ -70,6 +70,14 @@ const BILLING_SECTIONS = [
             enable_free_model_pre_consume:
               settings['quota_setting.enable_free_model_pre_consume'],
           },
+          data_consent: {
+            enabled: settings['data_consent.enabled'],
+            accepted_multiplier:
+              settings['data_consent.accepted_multiplier'],
+            declined_multiplier:
+              settings['data_consent.declined_multiplier'],
+            agreement_version: settings['data_consent.agreement_version'],
+          },
         }}
         complianceConfirmed={
           (settings['payment_setting.compliance_confirmed'] ?? false) &&

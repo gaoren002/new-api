@@ -190,6 +190,12 @@ export interface LogOtherData {
   is_system_prompt_overwritten?: boolean
   po?: string[]
   billing_source?: string
+  data_consent_enabled?: boolean
+  data_consent_status?: 'accepted' | 'declined' | 'unset' | 'disabled' | string
+  data_consent_authorized?: boolean
+  data_consent_price_multiplier?: number
+  data_consent_agreement_version?: string
+  data_consent_user_version?: string
   group?: string
   stream_status?: {
     status?: string

@@ -62,6 +62,16 @@ const PersonalSetting = () => {
     set_new_password: '',
     set_new_password_confirmation: '',
   });
+
+  const parseUserSetting = (setting) => {
+    if (!setting) return {};
+    if (typeof setting === 'object') return setting;
+    try {
+      return JSON.parse(setting);
+    } catch (error) {
+      return {};
+    }
+  };
   const [status, setStatus] = useState({});
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [showWeChatBindModal, setShowWeChatBindModal] = useState(false);
@@ -95,6 +105,9 @@ const PersonalSetting = () => {
     upstreamModelUpdateNotifyEnabled: false,
     acceptUnsetModelRatioModel: false,
     recordIpLog: false,
+    dataConsentStatus: '',
+    dataConsentVersion: '',
+    dataConsentUpdatedAt: 0,
   });
 
   const {
@@ -181,7 +194,7 @@ const PersonalSetting = () => {
 
   useEffect(() => {
     if (userState?.user?.setting) {
-      const settings = JSON.parse(userState.user.setting);
+      const settings = parseUserSetting(userState.user.setting);
       setNotificationSettings({
         warningType: settings.notify_type || 'email',
         warningThreshold: settings.quota_warning_threshold || 500000,
@@ -198,9 +211,47 @@ const PersonalSetting = () => {
         acceptUnsetModelRatioModel:
           settings.accept_unset_model_ratio_model || false,
         recordIpLog: settings.record_ip_log || false,
+        dataConsentStatus: settings.data_consent_status || '',
+        dataConsentVersion: settings.data_consent_version || '',
+        dataConsentUpdatedAt: settings.data_consent_updated_at || 0,
       });
     }
   }, [userState?.user?.setting]);
+
+  const saveDataConsent = async (choice) => {
+    try {
+      const res = await API.put('/api/user/data_consent', { status: choice });
+      const { success, data, message } = res.data;
+      if (!success) {
+        showError(message);
+        return;
+      }
+      const currentSetting = userState?.user?.setting
+        ? parseUserSetting(userState.user.setting)
+        : {};
+      const nextSetting = {
+        ...currentSetting,
+        data_consent_status: choice,
+        data_consent_version: data?.version || 'v1',
+        data_consent_updated_at: data?.updated_at || Math.floor(Date.now() / 1000),
+      };
+      const nextUser = {
+        ...userState.user,
+        setting: JSON.stringify(nextSetting),
+      };
+      userDispatch({ type: 'login', payload: nextUser });
+      setUserData(nextUser);
+      setNotificationSettings((prev) => ({
+        ...prev,
+        dataConsentStatus: choice,
+        dataConsentVersion: nextSetting.data_consent_version,
+        dataConsentUpdatedAt: nextSetting.data_consent_updated_at,
+      }));
+      showSuccess(t('数据授权偏好已保存'));
+    } catch (error) {
+      showError(t('设置保存失败'));
+    }
+  };
 
   const handleInputChange = (name, value) => {
     setInputs((inputs) => ({ ...inputs, [name]: value }));
@@ -593,6 +644,8 @@ const PersonalSetting = () => {
               notificationSettings={notificationSettings}
               handleNotificationSettingChange={handleNotificationSettingChange}
               saveNotificationSettings={saveNotificationSettings}
+              status={status}
+              saveDataConsent={saveDataConsent}
             />
           </div>
         </div>

@@ -197,7 +197,10 @@ func RelayTaskSubmit(c *gin.Context, info *relaycommon.RelayInfo) (*TaskSubmitRe
 	// 6. 将 OtherRatios 应用到基础额度（饱和转换，防止溢出成负数）
 	if !common.StringsContains(constant.TaskPricePatches, modelName) {
 		quotaWithRatios := float64(info.PriceData.Quota)
-		for _, ra := range info.PriceData.OtherRatios {
+		for key, ra := range info.PriceData.OtherRatios {
+			if service.IsDataConsentAppliedRatio(key) {
+				continue
+			}
 			if ra != 1.0 {
 				quotaWithRatios *= ra
 			}
@@ -272,7 +275,10 @@ func recalcQuotaFromRatios(info *relaycommon.RelayInfo, ratios map[string]float6
 	// 从 PriceData 获取不含 OtherRatios 的基础价格
 	baseQuota := float64(info.PriceData.Quota)
 	// 先除掉原有的 OtherRatios 恢复基础额度
-	for _, ra := range info.PriceData.OtherRatios {
+	for key, ra := range info.PriceData.OtherRatios {
+		if service.IsDataConsentAppliedRatio(key) {
+			continue
+		}
 		if ra != 1.0 && ra > 0 {
 			baseQuota /= ra
 		}

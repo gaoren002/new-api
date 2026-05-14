@@ -29,11 +29,12 @@ import {
   Tabs,
   TabPane,
   Switch,
+  Tag,
   Row,
   Col,
 } from '@douyinfe/semi-ui';
 import { IconMail, IconKey, IconBell, IconLink } from '@douyinfe/semi-icons';
-import { ShieldCheck, Bell, DollarSign, Settings } from 'lucide-react';
+import { Database, ShieldCheck, Bell, DollarSign, Settings } from 'lucide-react';
 import {
   renderQuotaWithPrompt,
   API,
@@ -54,6 +55,8 @@ const NotificationSettings = ({
   notificationSettings,
   handleNotificationSettingChange,
   saveNotificationSettings,
+  status,
+  saveDataConsent,
 }) => {
   const formApiRef = useRef(null);
   const [statusState] = useContext(StatusContext);
@@ -794,6 +797,56 @@ const NotificationSettings = ({
                     '开启后，仅"消费"和"错误"日志将记录您的客户端IP地址',
                   )}
                 />
+
+                {status?.data_consent_enabled && (
+                  <div className='mt-4 rounded-xl border p-4'>
+                    <div className='flex items-center mb-2'>
+                      <Database size={16} className='mr-2' />
+                      <Typography.Text strong>{t('数据授权协议')}</Typography.Text>
+                    </div>
+                    <Typography.Text type='secondary' size='small'>
+                      {t(
+                        '授权 SuperAPI 收集你的对话数据，用于改善用户体验和改进国产模型。',
+                      )}
+                    </Typography.Text>
+                    <div className='mt-3 flex flex-wrap gap-2'>
+                      <Tag
+                        color={
+                          notificationSettings.dataConsentStatus === 'accepted'
+                            ? 'green'
+                            : notificationSettings.dataConsentStatus ===
+                                'declined'
+                              ? 'red'
+                              : 'orange'
+                        }
+                      >
+                        {notificationSettings.dataConsentStatus === 'accepted'
+                          ? t('已接受')
+                          : notificationSettings.dataConsentStatus ===
+                              'declined'
+                            ? t('已拒绝')
+                            : t('未选择')}
+                      </Tag>
+                      <Tag color='green'>
+                        {t('接受')} {status.data_consent_accepted_multiplier || 0.95}x
+                      </Tag>
+                      <Tag color='red'>
+                        {t('拒绝/未签')} {status.data_consent_declined_multiplier || 1.05}x
+                      </Tag>
+                    </div>
+                    <div className='mt-3 flex gap-2'>
+                      <Button
+                        type='primary'
+                        onClick={() => saveDataConsent?.('accepted')}
+                      >
+                        {t('接受')}
+                      </Button>
+                      <Button onClick={() => saveDataConsent?.('declined')}>
+                        {t('拒绝')}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </TabPane>
 

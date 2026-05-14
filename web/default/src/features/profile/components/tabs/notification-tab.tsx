@@ -16,25 +16,30 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Bell, Loader2, Mail, Server, Webhook } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
+import { Bell, Database, Loader2, Mail, Server, Webhook } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-
-import { PasswordInput } from '@/components/password-input'
+import { useStatus } from '@/hooks/use-status'
+import { useAuthStore } from '@/stores/auth-store'
+import { ROLE } from '@/lib/roles'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { ROLE } from '@/lib/roles'
-
-import { updateUserSettings } from '../../api'
+import { StatusBadge } from '@/components/status-badge'
+import { PasswordInput } from '@/components/password-input'
+import { updateDataConsent, updateUserSettings } from '../../api'
 import {
   DEFAULT_QUOTA_WARNING_THRESHOLD,
   NOTIFICATION_METHODS,
 } from '../../constants'
 import { parseUserSettings } from '../../lib'
+import {
+  getDataConsentStatus,
+  updateUserDataConsentSetting,
+} from '../../lib/data-consent'
 import type { UserProfile, UserSettings, NotifyType } from '../../types'
 
 const NOTIFICATION_ICONS: Record<NotifyType, typeof Mail> = {
@@ -66,8 +71,14 @@ interface NotificationTabProps {
 
 export function NotificationTab({ profile, onUpdate }: NotificationTabProps) {
   const { t } = useTranslation()
+  const { status } = useStatus()
+  const authUser = useAuthStore((state) => state.auth.user)
+  const setUser = useAuthStore((state) => state.auth.setUser)
   const isAdmin = (profile?.role ?? 0) >= ROLE.ADMIN
   const [loading, setLoading] = useState(false)
+  const [consentLoading, setConsentLoading] = useState<
+    'accepted' | 'declined' | null
+  >(null)
   const [settings, setSettings] = useState<UserSettings>({
     notify_type: 'email',
     quota_warning_threshold: DEFAULT_QUOTA_WARNING_THRESHOLD,
@@ -133,6 +144,52 @@ export function NotificationTab({ profile, onUpdate }: NotificationTabProps) {
   }
 
   const notifyType = normalizeNotifyType(settings.notify_type)
+
+  const dataConsentEnabled = Boolean(status?.data_consent_enabled)
+  const dataConsentAgreementVersion =
+    (status?.data_consent_agreement_version as string | undefined) || 'v1'
+  const acceptedMultiplier =
+    Number(status?.data_consent_accepted_multiplier) || 0.95
+  const declinedMultiplier =
+    Number(status?.data_consent_declined_multiplier) || 1.05
+  const dataConsentStatus = getDataConsentStatus(
+    settings,
+    dataConsentAgreementVersion
+  )
+
+  const handleDataConsent = async (choice: 'accepted' | 'declined') => {
+    if (!authUser) return
+    try {
+      setConsentLoading(choice)
+      const response = await updateDataConsent({ status: choice })
+      if (response.success && response.data) {
+        setSettings((prev) => ({
+          ...prev,
+          data_consent_status: choice,
+          data_consent_version:
+            response.data?.version || dataConsentAgreementVersion,
+          data_consent_updated_at:
+            response.data?.updated_at || Math.floor(Date.now() / 1000),
+        }))
+        setUser(
+          updateUserDataConsentSetting(
+            authUser,
+            choice,
+            response.data.version || dataConsentAgreementVersion,
+            response.data.updated_at || Math.floor(Date.now() / 1000)
+          )
+        )
+        toast.success(t('Data authorization preference saved'))
+        onUpdate()
+      } else {
+        toast.error(response.message || t('Failed to update settings'))
+      }
+    } catch (_error) {
+      toast.error(t('Failed to update settings'))
+    } finally {
+      setConsentLoading(null)
+    }
+  }
 
   return (
     <div className='space-y-4 sm:space-y-6'>
@@ -318,6 +375,86 @@ export function NotificationTab({ profile, onUpdate }: NotificationTabProps) {
             </p>
           </div>
         </>
+      )}
+
+      {/* Divider */}
+      <div className='border-t' />
+
+      {/* Data Authorization */}
+      {dataConsentEnabled && (
+        <div className='space-y-3'>
+          <div className='flex items-center justify-between gap-3'>
+            <div>
+              <h4 className='flex items-center gap-2 text-sm font-medium'>
+                <Database className='size-4' />
+                {t('Data Authorization Agreement')}
+              </h4>
+              <p className='text-muted-foreground mt-1 text-xs'>
+                {t(
+                  'Authorize SuperAPI to collect conversation data for product experience improvements and domestic model optimization.'
+                )}
+              </p>
+            </div>
+            <StatusBadge
+              variant={
+                dataConsentStatus === 'accepted'
+                  ? 'success'
+                  : dataConsentStatus === 'declined'
+                    ? 'danger'
+                    : 'warning'
+              }
+              label={
+                dataConsentStatus === 'accepted'
+                  ? t('Accepted')
+                  : dataConsentStatus === 'declined'
+                    ? t('Rejected')
+                    : t('Pending')
+              }
+              copyable={false}
+            />
+          </div>
+          <div className='grid gap-3 sm:grid-cols-2'>
+            <div className='rounded-lg border p-3'>
+              <div className='text-sm font-medium'>{t('Accept')}</div>
+              <p className='text-muted-foreground mt-1 text-xs'>
+                {t('Conversation data will be collected and pricing is {{multiplier}}x.', {
+                  multiplier: acceptedMultiplier,
+                })}
+              </p>
+              <Button
+                className='mt-3 w-full'
+                size='sm'
+                onClick={() => handleDataConsent('accepted')}
+                disabled={consentLoading !== null}
+              >
+                {consentLoading === 'accepted' && (
+                  <Loader2 className='animate-spin' />
+                )}
+                {t('Accept')}
+              </Button>
+            </div>
+            <div className='rounded-lg border p-3'>
+              <div className='text-sm font-medium'>{t('Reject')}</div>
+              <p className='text-muted-foreground mt-1 text-xs'>
+                {t('No data will be collected and pricing is {{multiplier}}x.', {
+                  multiplier: declinedMultiplier,
+                })}
+              </p>
+              <Button
+                className='mt-3 w-full'
+                variant='outline'
+                size='sm'
+                onClick={() => handleDataConsent('declined')}
+                disabled={consentLoading !== null}
+              >
+                {consentLoading === 'declined' && (
+                  <Loader2 className='animate-spin' />
+                )}
+                {t('Reject')}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Divider */}

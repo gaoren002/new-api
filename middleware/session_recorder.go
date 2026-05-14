@@ -14,6 +14,8 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/dto"
+	"github.com/QuantumNous/new-api/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -124,7 +126,7 @@ func newSessionRecorderClient() *sessionRecorderClient {
 func SessionRecorderCapture() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		client := getSessionRecorderClient()
-		if !client.enabled || !shouldSessionRecord(c.Request) {
+		if !client.enabled || !shouldSessionRecord(c.Request) || !isSessionRecorderDataConsentAuthorized(c) {
 			c.Next()
 			return
 		}
@@ -145,6 +147,14 @@ func SessionRecorderCapture() gin.HandlerFunc {
 			client.enqueue(payload)
 		}
 	}
+}
+
+func isSessionRecorderDataConsentAuthorized(c *gin.Context) bool {
+	userSetting, ok := common.GetContextKeyType[dto.UserSetting](c, constant.ContextKeyUserSetting)
+	if !ok {
+		return false
+	}
+	return service.DataConsentStateForUserSetting(userSetting).Authorized
 }
 
 func getSessionRecorderClient() *sessionRecorderClient {
@@ -293,8 +303,14 @@ func multipartSummary(c *gin.Context) map[string]any {
 	for key, values := range c.Request.MultipartForm.Value {
 		if len(values) == 1 {
 			fields[key] = values[0]
+			if isSessionRecorderPromotedField(key) {
+				result[key] = values[0]
+			}
 		} else {
 			fields[key] = values
+			if isSessionRecorderPromotedField(key) {
+				result[key] = values
+			}
 		}
 	}
 	files := map[string]any{}
@@ -311,6 +327,15 @@ func multipartSummary(c *gin.Context) map[string]any {
 	result["fields"] = fields
 	result["files"] = files
 	return result
+}
+
+func isSessionRecorderPromotedField(key string) bool {
+	switch key {
+	case "model", "prompt", "input", "n", "size", "quality", "response_format", "background", "output_format", "output_compression", "partial_images":
+		return true
+	default:
+		return false
+	}
 }
 
 func normalizeCapturedResponse(data []byte, contentType string) any {
@@ -528,7 +553,7 @@ func classifySessionRecorderEndpoint(path string) (string, string) {
 	case path == "/v1/completions":
 		return "openai", "completions"
 	case path == "/v1/edits":
-		return "openai", "edits"
+		return "openai", "image_edits"
 	case path == "/v1/responses/compact":
 		return "openai", "responses_compact"
 	case path == "/v1/responses":

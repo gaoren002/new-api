@@ -153,6 +153,11 @@ func authHelper(c *gin.Context, minRole int) {
 	c.Set("group", session.Get("group"))
 	c.Set("user_group", session.Get("group"))
 	c.Set("use_access_token", useAccessToken)
+	if userId, ok := id.(int); ok {
+		if userSetting, err := model.GetUserSetting(userId, false); err == nil {
+			common.SetContextKey(c, constant.ContextKeyUserSetting, userSetting)
+		}
+	}
 
 	// 管理/root 写操作审计兜底：内聚在鉴权链路里，保证任何经过 AdminAuth/RootAuth
 	// 的写接口都会自动留痕（无需在路由上单独挂审计中间件，避免漏挂）。

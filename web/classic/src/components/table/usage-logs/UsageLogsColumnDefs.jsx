@@ -36,7 +36,7 @@ import {
   renderTieredModelPriceSimple,
 } from '../../../helpers';
 import { IconHelpCircle } from '@douyinfe/semi-icons';
-import { CircleAlert, Route, Sparkles } from 'lucide-react';
+import { CircleAlert, Database, Route, Sparkles } from 'lucide-react';
 
 const colors = [
   'amber',
@@ -64,6 +64,42 @@ function formatRatio(ratio) {
     return ratio.toFixed(4);
   }
   return String(ratio);
+}
+
+function formatRatioCompact(ratio) {
+  if (ratio === undefined || ratio === null || Number.isNaN(Number(ratio))) {
+    return '-';
+  }
+  const number = Number(ratio);
+  return number % 1 === 0
+    ? String(number)
+    : number.toFixed(4).replace(/\.?0+$/, '');
+}
+
+function getDataConsentLogConfig(other, t) {
+  if (!other?.data_consent_enabled) {
+    return { label: t('未开启'), color: 'grey' };
+  }
+  switch (other.data_consent_status) {
+    case 'accepted':
+      return {
+        label: t('已接受'),
+        color: 'green',
+        multiplier: other.data_consent_price_multiplier,
+      };
+    case 'declined':
+      return {
+        label: t('已拒绝'),
+        color: 'red',
+        multiplier: other.data_consent_price_multiplier,
+      };
+    default:
+      return {
+        label: t('未签署'),
+        color: 'orange',
+        multiplier: other.data_consent_price_multiplier,
+      };
+  }
 }
 
 function buildChannelAffinityTooltip(affinity, t) {
@@ -827,6 +863,40 @@ export const getLogsColumns = ({
           );
         }
         return <>{renderQuota(text, 6)}</>;
+      },
+    },
+    {
+      key: COLUMN_KEYS.DATA_CONSENT,
+      title: t('数据授权'),
+      dataIndex: 'data_consent',
+      render: (text, record, index) => {
+        if (
+          !(
+            record.type === 0 ||
+            record.type === 2 ||
+            record.type === 5 ||
+            record.type === 6
+          )
+        ) {
+          return <></>;
+        }
+        const other = getLogOther(record.other);
+        const config = getDataConsentLogConfig(other, t);
+        return (
+          <Space vertical align='start' spacing={2}>
+            <Tag color={config.color} shape='circle'>
+              <span className='inline-flex items-center gap-1'>
+                <Database size={12} />
+                {config.label}
+              </span>
+            </Tag>
+            {config.multiplier && config.multiplier !== 1 ? (
+              <Typography.Text size='small' type='secondary'>
+                {formatRatioCompact(config.multiplier)}x
+              </Typography.Text>
+            ) : null}
+          </Space>
+        );
       },
     },
     {

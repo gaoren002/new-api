@@ -159,6 +159,7 @@ func setupLogin(user *model.User, c *gin.Context) {
 			"role":         user.Role,
 			"status":       user.Status,
 			"group":        user.Group,
+			"setting":      user.Setting,
 		},
 	})
 }
@@ -1434,6 +1435,12 @@ func UpdateUserSetting(c *gin.Context) {
 		UpstreamModelUpdateNotifyEnabled: upstreamModelUpdateNotifyEnabled,
 		AcceptUnsetRatioModel:            req.AcceptUnsetModelRatioModel,
 		RecordIpLog:                      req.RecordIpLog,
+		SidebarModules:                   existingSettings.SidebarModules,
+		BillingPreference:                existingSettings.BillingPreference,
+		Language:                         existingSettings.Language,
+		DataConsentStatus:                existingSettings.DataConsentStatus,
+		DataConsentVersion:               existingSettings.DataConsentVersion,
+		DataConsentUpdatedAt:             existingSettings.DataConsentUpdatedAt,
 	}
 
 	// 如果是webhook类型,添加webhook相关设置

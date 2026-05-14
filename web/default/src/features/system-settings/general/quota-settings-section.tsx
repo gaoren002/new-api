@@ -61,6 +61,12 @@ const quotaSchema = z.object({
   quota_setting: z.object({
     enable_free_model_pre_consume: z.boolean(),
   }),
+  data_consent: z.object({
+    enabled: z.boolean(),
+    accepted_multiplier: z.coerce.number().positive(),
+    declined_multiplier: z.coerce.number().positive(),
+    agreement_version: z.string().min(1),
+  }),
 })
 
 type QuotaFormValues = z.infer<typeof quotaSchema>
@@ -171,6 +177,91 @@ export function QuotaSettingsSection({
                 </FormItem>
               )}
             />
+
+            <div className='space-y-4 rounded-lg border p-4'>
+              <FormField
+                control={form.control}
+                name='data_consent.enabled'
+                render={({ field }) => (
+                  <FormItem className='flex flex-row items-center justify-between gap-4'>
+                    <div className='space-y-0.5'>
+                      <FormLabel className='text-base'>
+                        {t('Data Authorization Pricing')}
+                      </FormLabel>
+                      <FormDescription>
+                        {t(
+                          'When enabled, users who accept data authorization receive discounted pricing, while rejected or unsigned users use a higher multiplier.'
+                        )}
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={updateOption.isPending}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <div className='grid gap-4 sm:grid-cols-3'>
+                <FormField
+                  control={form.control}
+                  name='data_consent.accepted_multiplier'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Accepted Multiplier')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          type='number'
+                          step='0.01'
+                          value={field.value ?? ''}
+                          onChange={handleNumberChange(field.onChange)}
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='data_consent.declined_multiplier'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Rejected Multiplier')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          type='number'
+                          step='0.01'
+                          value={field.value ?? ''}
+                          onChange={handleNumberChange(field.onChange)}
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='data_consent.agreement_version'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Agreement Version')}</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
 
             <FormField
               control={form.control}

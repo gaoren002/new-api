@@ -40,6 +40,7 @@ import { UserContext } from '../../context/User';
 import { StatusContext } from '../../context/Status';
 import { useLocation } from 'react-router-dom';
 import { normalizeLanguage } from '../../i18n/language';
+import DataConsentModal from './DataConsentModal';
 const { Sider, Content, Header } = Layout;
 
 const PageLayout = () => {
@@ -240,6 +241,7 @@ const PageLayout = () => {
           )}
         </Layout>
       </Layout>
+      <DataConsentModal />
       <ToastContainer />
     </Layout>
   );

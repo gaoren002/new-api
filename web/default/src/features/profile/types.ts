@@ -118,6 +118,12 @@ export interface UserSettings {
   upstream_model_update_notify_enabled?: boolean
   /** Preferred interface/API response language */
   language?: string
+  /** Data authorization agreement status */
+  data_consent_status?: 'accepted' | 'declined' | 'unset' | ''
+  /** Data authorization agreement version */
+  data_consent_version?: string
+  /** Data authorization agreement update time */
+  data_consent_updated_at?: number
 }
 
 /**
@@ -145,6 +151,10 @@ export interface UpdateUserSettingsRequest {
   accept_unset_model_ratio_model?: boolean
   record_ip_log?: boolean
   upstream_model_update_notify_enabled?: boolean
+}
+
+export interface UpdateDataConsentRequest {
+  status: 'accepted' | 'declined'
 }
 
 /**

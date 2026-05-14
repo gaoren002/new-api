@@ -23,6 +23,7 @@ import type {
   UserProfile,
   UpdateUserRequest,
   UpdateUserSettingsRequest,
+  UpdateDataConsentRequest,
   DeleteAccountRequest,
   CheckinStatusResponse,
   CheckinResponse,
@@ -57,6 +58,20 @@ export async function updateUserSettings(
   data: UpdateUserSettingsRequest
 ): Promise<ApiResponse> {
   const res = await api.put('/api/user/setting', data)
+  return res.data
+}
+
+/**
+ * Update data authorization agreement status
+ */
+export async function updateDataConsent(
+  data: UpdateDataConsentRequest
+): Promise<ApiResponse<{
+  status: string
+  version: string
+  updated_at: number
+}>> {
+  const res = await api.put('/api/user/data_consent', data)
   return res.data
 }
 

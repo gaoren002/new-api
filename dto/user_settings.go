@@ -16,6 +16,9 @@ type UserSetting struct {
 	SidebarModules                   string  `json:"sidebar_modules,omitempty"`                      // SidebarModules 左侧边栏模块配置
 	BillingPreference                string  `json:"billing_preference,omitempty"`                   // BillingPreference 扣费策略（订阅/钱包）
 	Language                         string  `json:"language,omitempty"`                             // Language 用户语言偏好 (zh, en)
+	DataConsentStatus                string  `json:"data_consent_status,omitempty"`                  // DataConsentStatus 数据授权状态：accepted/declined
+	DataConsentVersion               string  `json:"data_consent_version,omitempty"`                 // DataConsentVersion 用户确认的数据授权协议版本
+	DataConsentUpdatedAt             int64   `json:"data_consent_updated_at,omitempty"`              // DataConsentUpdatedAt 数据授权更新时间
 }
 
 var (
@@ -23,4 +26,9 @@ var (
 	NotifyTypeWebhook = "webhook" // Webhook
 	NotifyTypeBark    = "bark"    // Bark 推送
 	NotifyTypeGotify  = "gotify"  // Gotify 推送
+
+	DataConsentStatusAccepted = "accepted"
+	DataConsentStatusDeclined = "declined"
+	DataConsentStatusUnset    = "unset"
+	DataConsentStatusDisabled = "disabled"
 )

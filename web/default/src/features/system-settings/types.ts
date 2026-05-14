@@ -250,6 +250,10 @@ export type ModelSettings = {
 export type BillingSettings = {
   QuotaForNewUser: number
   PreConsumedQuota: number
+  'data_consent.enabled': boolean
+  'data_consent.accepted_multiplier': number
+  'data_consent.declined_multiplier': number
+  'data_consent.agreement_version': string
   QuotaForInviter: number
   QuotaForInvitee: number
   TopUpLink: string
