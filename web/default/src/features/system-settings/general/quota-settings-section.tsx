@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-
+import { Textarea } from '@/components/ui/textarea'
 import { FormDirtyIndicator } from '../components/form-dirty-indicator'
 import { FormNavigationGuard } from '../components/form-navigation-guard'
 import {
@@ -66,6 +66,7 @@ const quotaSchema = z.object({
     accepted_multiplier: z.coerce.number().positive(),
     declined_multiplier: z.coerce.number().positive(),
     agreement_version: z.string().min(1),
+    agreement_content: z.string(),
   }),
 })
 
@@ -261,6 +262,30 @@ export function QuotaSettingsSection({
                   )}
                 />
               </div>
+              <FormField
+                control={form.control}
+                name='data_consent.agreement_content'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Agreement Content')}</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        rows={12}
+                        placeholder={t(
+                          'Enter the data authorization agreement shown to users.'
+                        )}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        'This content is shown in the user popup and profile settings. Leave empty to use the built-in default agreement.'
+                      )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <FormField

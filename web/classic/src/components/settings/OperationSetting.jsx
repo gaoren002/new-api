@@ -39,8 +39,9 @@ const OperationSetting = () => {
     'quota_setting.enable_free_model_pre_consume': true,
     'data_consent.enabled': false,
     'data_consent.accepted_multiplier': 0.95,
-    'data_consent.declined_multiplier': 1.05,
+    'data_consent.declined_multiplier': 1.0,
     'data_consent.agreement_version': 'v1',
+    'data_consent.agreement_content': '',
 
     /* 通用设置 */
     TopUpLink: '',

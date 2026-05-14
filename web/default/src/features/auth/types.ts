@@ -128,6 +128,7 @@ export interface SystemStatus {
     privacy_policy_enabled?: boolean
     data_consent_enabled?: boolean
     data_consent_agreement_version?: string
+    data_consent_agreement_content?: string
     data_consent_accepted_multiplier?: number
     data_consent_declined_multiplier?: number
     oauth_register_enabled?: boolean
@@ -176,6 +177,7 @@ export interface SystemStatus {
   privacy_policy_enabled?: boolean
   data_consent_enabled?: boolean
   data_consent_agreement_version?: string
+  data_consent_agreement_content?: string
   data_consent_accepted_multiplier?: number
   data_consent_declined_multiplier?: number
   oauth_register_enabled?: boolean

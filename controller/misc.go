@@ -126,6 +126,7 @@ func GetStatus(c *gin.Context) {
 		"checkin_enabled":                  operation_setting.GetCheckinSetting().Enabled,
 		"data_consent_enabled":             dataConsentSetting.Enabled,
 		"data_consent_agreement_version":   operation_setting.GetDataConsentAgreementVersion(),
+		"data_consent_agreement_content":   operation_setting.GetDataConsentAgreementContent(),
 		"data_consent_accepted_multiplier": operation_setting.GetDataConsentAcceptedMultiplier(),
 		"data_consent_declined_multiplier": operation_setting.GetDataConsentDeclinedMultiplier(),
 	}

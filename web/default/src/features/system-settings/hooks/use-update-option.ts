@@ -42,6 +42,7 @@ const STATUS_RELATED_KEYS = [
   'data_consent.accepted_multiplier',
   'data_consent.declined_multiplier',
   'data_consent.agreement_version',
+  'data_consent.agreement_content',
 ]
 
 export function useUpdateOption() {

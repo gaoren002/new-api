@@ -254,6 +254,7 @@ export type BillingSettings = {
   'data_consent.accepted_multiplier': number
   'data_consent.declined_multiplier': number
   'data_consent.agreement_version': string
+  'data_consent.agreement_content': string
   QuotaForInviter: number
   QuotaForInvitee: number
   TopUpLink: string

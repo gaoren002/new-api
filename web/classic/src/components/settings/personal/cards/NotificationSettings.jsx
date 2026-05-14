@@ -34,7 +34,13 @@ import {
   Col,
 } from '@douyinfe/semi-ui';
 import { IconMail, IconKey, IconBell, IconLink } from '@douyinfe/semi-icons';
-import { Database, ShieldCheck, Bell, DollarSign, Settings } from 'lucide-react';
+import {
+  Database,
+  ShieldCheck,
+  Bell,
+  DollarSign,
+  Settings,
+} from 'lucide-react';
 import {
   renderQuotaWithPrompt,
   API,
@@ -50,6 +56,9 @@ import {
   useSidebar,
 } from '../../../../hooks/common/useSidebar';
 
+const DEFAULT_DATA_CONSENT_AGREEMENT =
+  '授权 SuperAPI 收集你的对话数据，用于改善用户体验和改进国产模型。';
+
 const NotificationSettings = ({
   t,
   notificationSettings,
@@ -62,6 +71,8 @@ const NotificationSettings = ({
   const [statusState] = useContext(StatusContext);
   const [userState] = useContext(UserContext);
   const isAdminOrRoot = (userState?.user?.role || 0) >= 10;
+  const dataConsentAgreementContent =
+    status?.data_consent_agreement_content || DEFAULT_DATA_CONSENT_AGREEMENT;
 
   // 左侧边栏设置相关状态
   const [sidebarLoading, setSidebarLoading] = useState(false);
@@ -481,7 +492,10 @@ const NotificationSettings = ({
                     checkedText={t('开')}
                     uncheckedText={t('关')}
                     onChange={(value) =>
-                      handleFormChange('upstreamModelUpdateNotifyEnabled', value)
+                      handleFormChange(
+                        'upstreamModelUpdateNotifyEnabled',
+                        value,
+                      )
                     }
                     extraText={t(
                       '仅管理员可用。开启后，当系统定时检测全部渠道发现上游模型变更或检测异常时，将按你选择的通知方式发送汇总通知；渠道或模型过多时会自动省略部分明细。',
@@ -802,13 +816,13 @@ const NotificationSettings = ({
                   <div className='mt-4 rounded-xl border p-4'>
                     <div className='flex items-center mb-2'>
                       <Database size={16} className='mr-2' />
-                      <Typography.Text strong>{t('数据授权协议')}</Typography.Text>
+                      <Typography.Text strong>
+                        {t('数据授权协议')}
+                      </Typography.Text>
                     </div>
-                    <Typography.Text type='secondary' size='small'>
-                      {t(
-                        '授权 SuperAPI 收集你的对话数据，用于改善用户体验和改进国产模型。',
-                      )}
-                    </Typography.Text>
+                    <div className='max-h-56 overflow-y-auto rounded-lg border p-3 whitespace-pre-wrap text-sm leading-6 text-gray-600'>
+                      {dataConsentAgreementContent}
+                    </div>
                     <div className='mt-3 flex flex-wrap gap-2'>
                       <Tag
                         color={
@@ -828,10 +842,12 @@ const NotificationSettings = ({
                             : t('未选择')}
                       </Tag>
                       <Tag color='green'>
-                        {t('接受')} {status.data_consent_accepted_multiplier || 0.95}x
+                        {t('接受')}{' '}
+                        {status.data_consent_accepted_multiplier || 0.95}x
                       </Tag>
                       <Tag color='red'>
-                        {t('拒绝/未签')} {status.data_consent_declined_multiplier || 1.05}x
+                        {t('拒绝/未签')}{' '}
+                        {status.data_consent_declined_multiplier || 1.0}x
                       </Tag>
                     </div>
                     <div className='mt-3 flex gap-2'>

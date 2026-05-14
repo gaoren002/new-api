@@ -72,11 +72,10 @@ const BILLING_SECTIONS = [
           },
           data_consent: {
             enabled: settings['data_consent.enabled'],
-            accepted_multiplier:
-              settings['data_consent.accepted_multiplier'],
-            declined_multiplier:
-              settings['data_consent.declined_multiplier'],
+            accepted_multiplier: settings['data_consent.accepted_multiplier'],
+            declined_multiplier: settings['data_consent.declined_multiplier'],
             agreement_version: settings['data_consent.agreement_version'],
+            agreement_content: settings['data_consent.agreement_content'],
           },
         }}
         complianceConfirmed={

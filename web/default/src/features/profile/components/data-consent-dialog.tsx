@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Database, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { useStatus } from '@/hooks/use-status'
 import { useAuthStore } from '@/stores/auth-store'
+import { useStatus } from '@/hooks/use-status'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Markdown } from '@/components/ui/markdown'
 import { updateDataConsent } from '../api'
 import {
   getDataConsentSettingsFromUser,
@@ -35,7 +36,12 @@ export function DataConsentDialog() {
   const acceptedMultiplier =
     Number(status?.data_consent_accepted_multiplier) || 0.95
   const declinedMultiplier =
-    Number(status?.data_consent_declined_multiplier) || 1.05
+    Number(status?.data_consent_declined_multiplier) || 1.0
+  const agreementContent =
+    (status?.data_consent_agreement_content as string | undefined) ||
+    t(
+      'Authorize SuperAPI to collect your conversation data to improve user experience and domestic model quality.'
+    )
   const consentStatus = getDataConsentStatus(
     getDataConsentSettingsFromUser(user),
     agreementVersion
@@ -69,18 +75,20 @@ export function DataConsentDialog() {
 
   return (
     <Dialog open={open}>
-      <DialogContent showCloseButton={false} className='sm:max-w-md'>
+      <DialogContent showCloseButton={false} className='sm:max-w-2xl'>
         <DialogHeader>
           <div className='bg-primary/10 text-primary mb-1 flex size-10 items-center justify-center rounded-lg'>
             <Database className='size-5' />
           </div>
           <DialogTitle>{t('Data Authorization Agreement')}</DialogTitle>
           <DialogDescription>
-            {t(
-              'Authorize SuperAPI to collect your conversation data to improve user experience and domestic model quality.'
-            )}
+            {t('Please read and choose whether to authorize data collection.')}
           </DialogDescription>
         </DialogHeader>
+
+        <div className='bg-muted/30 max-h-[42vh] overflow-y-auto rounded-lg border p-3'>
+          <Markdown className='text-sm'>{agreementContent}</Markdown>
+        </div>
 
         <div className='grid gap-2 text-sm'>
           <div className='rounded-lg border p-3'>
@@ -94,9 +102,12 @@ export function DataConsentDialog() {
           <div className='rounded-lg border p-3'>
             <div className='font-medium'>{t('Reject authorization')}</div>
             <div className='text-muted-foreground mt-1 text-xs'>
-              {t('No data will be collected and requests use {{multiplier}}x pricing.', {
-                multiplier: declinedMultiplier,
-              })}
+              {t(
+                'No data will be collected and requests use {{multiplier}}x pricing.',
+                {
+                  multiplier: declinedMultiplier,
+                }
+              )}
             </div>
           </div>
         </div>

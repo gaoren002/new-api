@@ -6,6 +6,9 @@ import { API, showError, showSuccess, setUserData } from '../../helpers';
 import { UserContext } from '../../context/User';
 import { StatusContext } from '../../context/Status';
 
+const DEFAULT_DATA_CONSENT_AGREEMENT =
+  '授权 SuperAPI 收集你的对话数据，用于改善用户体验和改进国产模型。';
+
 const parseSettings = (setting) => {
   if (!setting) return {};
   if (typeof setting === 'object') return setting;
@@ -54,12 +57,16 @@ const DataConsentModal = () => {
   const status = statusState?.status || {};
   const user = userState?.user;
   const agreementVersion = status.data_consent_agreement_version || 'v1';
+  const agreementContent =
+    status.data_consent_agreement_content || DEFAULT_DATA_CONSENT_AGREEMENT;
   const consentStatus = useMemo(
     () => getConsentStatus(parseSettings(user?.setting), agreementVersion),
     [user?.setting, agreementVersion],
   );
   const open =
-    Boolean(status.data_consent_enabled) && Boolean(user) && consentStatus === 'unset';
+    Boolean(status.data_consent_enabled) &&
+    Boolean(user) &&
+    consentStatus === 'unset';
 
   const submit = async (choice) => {
     if (!user) return;
@@ -116,9 +123,9 @@ const DataConsentModal = () => {
         </div>
       }
     >
-      <Typography.Paragraph>
-        {t('授权 SuperAPI 收集你的对话数据，用于改善用户体验和改进国产模型。')}
-      </Typography.Paragraph>
+      <div className='max-h-[42vh] overflow-y-auto rounded-lg border p-3 mb-3 whitespace-pre-wrap text-sm leading-6'>
+        {agreementContent}
+      </div>
       <div className='rounded-lg border p-3 mb-2'>
         <div className='font-medium'>{t('接受授权')}</div>
         <div className='text-xs text-gray-500 mt-1'>
@@ -130,7 +137,7 @@ const DataConsentModal = () => {
         <div className='font-medium'>{t('拒绝授权')}</div>
         <div className='text-xs text-gray-500 mt-1'>
           {t('不收集数据，价格倍率')}：
-          {status.data_consent_declined_multiplier || 1.05}x
+          {status.data_consent_declined_multiplier || 1.0}x
         </div>
       </div>
     </Modal>

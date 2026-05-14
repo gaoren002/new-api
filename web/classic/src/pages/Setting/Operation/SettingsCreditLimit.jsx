@@ -39,8 +39,9 @@ export default function SettingsCreditLimit(props) {
     'quota_setting.enable_free_model_pre_consume': true,
     'data_consent.enabled': false,
     'data_consent.accepted_multiplier': '0.95',
-    'data_consent.declined_multiplier': '1.05',
+    'data_consent.declined_multiplier': '1.0',
     'data_consent.agreement_version': 'v1',
+    'data_consent.agreement_content': '',
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
@@ -215,7 +216,7 @@ export default function SettingsCreditLimit(props) {
                     checkedText='｜'
                     uncheckedText='〇'
                     extraText={t(
-                      '开启后，用户接受数据授权按优惠倍率计费，拒绝或未签署按较高倍率计费；默认不收集未授权用户数据',
+                      '开启后，用户接受数据授权按优惠倍率计费，拒绝或未签署按标准倍率计费；默认不收集未授权用户数据',
                     )}
                     onChange={(value) =>
                       setInputs({
@@ -250,7 +251,7 @@ export default function SettingsCreditLimit(props) {
                     step={0.01}
                     min={0.01}
                     precision={2}
-                    extraText={t('默认 1.05，表示 1.05 倍价格')}
+                    extraText={t('默认 1.0，表示标准价格')}
                     onChange={(value) =>
                       setInputs({
                         ...inputs,
@@ -268,6 +269,25 @@ export default function SettingsCreditLimit(props) {
                       setInputs({
                         ...inputs,
                         'data_consent.agreement_version': value,
+                      })
+                    }
+                  />
+                </Col>
+              </Row>
+              <Row>
+                <Col xs={24} sm={24} md={24} lg={24} xl={24}>
+                  <Form.TextArea
+                    label={t('协议内容')}
+                    field={'data_consent.agreement_content'}
+                    rows={12}
+                    extraText={t(
+                      '展示在用户弹窗和个人设置中；留空则使用系统内置默认协议',
+                    )}
+                    placeholder={t('请输入数据授权协议内容')}
+                    onChange={(value) =>
+                      setInputs({
+                        ...inputs,
+                        'data_consent.agreement_content': value,
                       })
                     }
                   />

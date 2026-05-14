@@ -20,16 +20,17 @@ import { useState, useEffect, useCallback } from 'react'
 import { Bell, Database, Loader2, Mail, Server, Webhook } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { useStatus } from '@/hooks/use-status'
 import { useAuthStore } from '@/stores/auth-store'
 import { ROLE } from '@/lib/roles'
+import { useStatus } from '@/hooks/use-status'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Markdown } from '@/components/ui/markdown'
 import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { StatusBadge } from '@/components/status-badge'
 import { PasswordInput } from '@/components/password-input'
+import { StatusBadge } from '@/components/status-badge'
 import { updateDataConsent, updateUserSettings } from '../../api'
 import {
   DEFAULT_QUOTA_WARNING_THRESHOLD,
@@ -151,7 +152,12 @@ export function NotificationTab({ profile, onUpdate }: NotificationTabProps) {
   const acceptedMultiplier =
     Number(status?.data_consent_accepted_multiplier) || 0.95
   const declinedMultiplier =
-    Number(status?.data_consent_declined_multiplier) || 1.05
+    Number(status?.data_consent_declined_multiplier) || 1.0
+  const dataConsentAgreementContent =
+    (status?.data_consent_agreement_content as string | undefined) ||
+    t(
+      'Authorize SuperAPI to collect conversation data for product experience improvements and domestic model optimization.'
+    )
   const dataConsentStatus = getDataConsentStatus(
     settings,
     dataConsentAgreementVersion
@@ -389,11 +395,6 @@ export function NotificationTab({ profile, onUpdate }: NotificationTabProps) {
                 <Database className='size-4' />
                 {t('Data Authorization Agreement')}
               </h4>
-              <p className='text-muted-foreground mt-1 text-xs'>
-                {t(
-                  'Authorize SuperAPI to collect conversation data for product experience improvements and domestic model optimization.'
-                )}
-              </p>
             </div>
             <StatusBadge
               variant={
@@ -413,13 +414,21 @@ export function NotificationTab({ profile, onUpdate }: NotificationTabProps) {
               copyable={false}
             />
           </div>
+          <div className='bg-muted/30 max-h-56 overflow-y-auto rounded-lg border p-3'>
+            <Markdown className='text-sm'>
+              {dataConsentAgreementContent}
+            </Markdown>
+          </div>
           <div className='grid gap-3 sm:grid-cols-2'>
             <div className='rounded-lg border p-3'>
               <div className='text-sm font-medium'>{t('Accept')}</div>
               <p className='text-muted-foreground mt-1 text-xs'>
-                {t('Conversation data will be collected and pricing is {{multiplier}}x.', {
-                  multiplier: acceptedMultiplier,
-                })}
+                {t(
+                  'Conversation data will be collected and pricing is {{multiplier}}x.',
+                  {
+                    multiplier: acceptedMultiplier,
+                  }
+                )}
               </p>
               <Button
                 className='mt-3 w-full'
@@ -436,9 +445,12 @@ export function NotificationTab({ profile, onUpdate }: NotificationTabProps) {
             <div className='rounded-lg border p-3'>
               <div className='text-sm font-medium'>{t('Reject')}</div>
               <p className='text-muted-foreground mt-1 text-xs'>
-                {t('No data will be collected and pricing is {{multiplier}}x.', {
-                  multiplier: declinedMultiplier,
-                })}
+                {t(
+                  'No data will be collected and pricing is {{multiplier}}x.',
+                  {
+                    multiplier: declinedMultiplier,
+                  }
+                )}
               </p>
               <Button
                 className='mt-3 w-full'
