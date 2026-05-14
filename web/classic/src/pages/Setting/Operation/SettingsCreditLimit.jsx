@@ -37,6 +37,10 @@ export default function SettingsCreditLimit(props) {
     QuotaForInviter: '',
     QuotaForInvitee: '',
     'quota_setting.enable_free_model_pre_consume': true,
+    'data_consent.enabled': false,
+    'data_consent.accepted_multiplier': '0.95',
+    'data_consent.declined_multiplier': '1.05',
+    'data_consent.agreement_version': 'v1',
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
@@ -201,6 +205,75 @@ export default function SettingsCreditLimit(props) {
                 />
               </Col>
             </Row>
+
+            <Form.Section text={t('数据授权协议')}>
+              <Row>
+                <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                  <Form.Switch
+                    label={t('启用数据授权协议定价')}
+                    field={'data_consent.enabled'}
+                    checkedText='｜'
+                    uncheckedText='〇'
+                    extraText={t(
+                      '开启后，用户接受数据授权按优惠倍率计费，拒绝或未签署按较高倍率计费；默认不收集未授权用户数据',
+                    )}
+                    onChange={(value) =>
+                      setInputs({
+                        ...inputs,
+                        'data_consent.enabled': value,
+                      })
+                    }
+                  />
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                  <Form.InputNumber
+                    label={t('接受授权价格倍率')}
+                    field={'data_consent.accepted_multiplier'}
+                    step={0.01}
+                    min={0.01}
+                    precision={2}
+                    extraText={t('默认 0.95，表示 95 折')}
+                    onChange={(value) =>
+                      setInputs({
+                        ...inputs,
+                        'data_consent.accepted_multiplier': String(value),
+                      })
+                    }
+                  />
+                </Col>
+                <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                  <Form.InputNumber
+                    label={t('拒绝或未签价格倍率')}
+                    field={'data_consent.declined_multiplier'}
+                    step={0.01}
+                    min={0.01}
+                    precision={2}
+                    extraText={t('默认 1.05，表示 1.05 倍价格')}
+                    onChange={(value) =>
+                      setInputs({
+                        ...inputs,
+                        'data_consent.declined_multiplier': String(value),
+                      })
+                    }
+                  />
+                </Col>
+                <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                  <Form.Input
+                    label={t('协议版本')}
+                    field={'data_consent.agreement_version'}
+                    extraText={t('修改版本后，用户需要重新选择是否授权')}
+                    onChange={(value) =>
+                      setInputs({
+                        ...inputs,
+                        'data_consent.agreement_version': value,
+                      })
+                    }
+                  />
+                </Col>
+              </Row>
+            </Form.Section>
 
             <Row>
               <Button size='default' onClick={onSubmit}>
