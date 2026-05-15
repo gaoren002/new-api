@@ -172,9 +172,9 @@ export function InternalReviewSection({
 
   return (
     <SettingsSection
-      title={t('Internal Review')}
+      title={t('内容审核')}
       description={t(
-        'Send requests to an internal review service before forwarding them upstream. Blocked requests keep the pre-consumed quota.'
+        '在请求转发到上游模型前调用内容审核服务；被拦截的请求保留预扣费用。'
       )}
     >
       <Form {...form}>
@@ -187,11 +187,11 @@ export function InternalReviewSection({
                 <FormItem className='flex flex-row items-center justify-between rounded-lg border p-4'>
                   <div className='space-y-0.5'>
                     <FormLabel className='text-base'>
-                      {t('Enable internal review')}
+                      {t('启用内容审核')}
                     </FormLabel>
                     <FormDescription>
                       {t(
-                        'Requests are reviewed after pre-consumption and before upstream dispatch.'
+                        '请求会在预扣费后、转发上游前进行内容审核。'
                       )}
                     </FormDescription>
                   </div>
@@ -212,11 +212,11 @@ export function InternalReviewSection({
                 <FormItem className='flex flex-row items-center justify-between rounded-lg border p-4'>
                   <div className='space-y-0.5'>
                     <FormLabel className='text-base'>
-                      {t('Block on review errors')}
+                      {t('审核异常时拦截')}
                     </FormLabel>
                     <FormDescription>
                       {t(
-                        'When enabled, review timeouts or service errors stop the request.'
+                        '开启后，审核超时或审核服务异常会拦截请求。'
                       )}
                     </FormDescription>
                   </div>
@@ -237,7 +237,7 @@ export function InternalReviewSection({
               name='internal_review.endpoint'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('Review endpoint')}</FormLabel>
+                  <FormLabel>{t('审核接口地址')}</FormLabel>
                   <FormControl>
                     <Input
                       placeholder='https://review.example.com/review'
@@ -250,7 +250,7 @@ export function InternalReviewSection({
                   </FormControl>
                   <FormDescription>
                     {t(
-                      'NewAPI sends a POST request with model, text, request body and metadata.'
+                      'NewAPI 会发送 POST 请求，包含模型、文本、请求体和元数据。'
                     )}
                   </FormDescription>
                   <FormMessage />
@@ -263,7 +263,7 @@ export function InternalReviewSection({
               name='internal_review.bearer_token'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('Bearer token')}</FormLabel>
+                  <FormLabel>{t('Bearer Token')}</FormLabel>
                   <FormControl>
                     <PasswordInput
                       placeholder={t('Optional')}
@@ -277,7 +277,7 @@ export function InternalReviewSection({
                   </FormControl>
                   <FormDescription>
                     {t(
-                      'Sent as Authorization: Bearer token. Leave blank if unused.'
+                      '作为 Authorization: Bearer token 发送；不用鉴权可留空。'
                     )}
                   </FormDescription>
                   <FormMessage />
@@ -292,7 +292,7 @@ export function InternalReviewSection({
               name='internal_review.timeout_seconds'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('Timeout')}</FormLabel>
+                  <FormLabel>{t('审核超时')}</FormLabel>
                   <FormControl>
                     <div className='flex items-center gap-2'>
                       <Input
@@ -316,7 +316,7 @@ export function InternalReviewSection({
                     </div>
                   </FormControl>
                   <FormDescription>
-                    {t('Maximum wait time for the internal review service.')}
+                    {t('等待内容审核服务返回的最长时间。')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -324,7 +324,7 @@ export function InternalReviewSection({
             />
 
             <div className='space-y-3'>
-              <FormLabel>{t('Review scope')}</FormLabel>
+              <FormLabel>{t('审核范围')}</FormLabel>
               <div className='grid gap-3 rounded-lg border p-4'>
                 <FormField
                   control={form.control}
@@ -338,11 +338,9 @@ export function InternalReviewSection({
                         />
                       </FormControl>
                       <div className='space-y-1 leading-none'>
-                        <FormLabel>{t('Text requests')}</FormLabel>
+                        <FormLabel>{t('文本请求')}</FormLabel>
                         <FormDescription>
-                          {t(
-                            'Chat, responses, Claude and Gemini text requests.'
-                          )}
+                          {t('Chat、Responses、Claude、Gemini 等文本请求。')}
                         </FormDescription>
                       </div>
                     </FormItem>
@@ -360,9 +358,9 @@ export function InternalReviewSection({
                         />
                       </FormControl>
                       <div className='space-y-1 leading-none'>
-                        <FormLabel>{t('Image requests')}</FormLabel>
+                        <FormLabel>{t('图片请求')}</FormLabel>
                         <FormDescription>
-                          {t('Image generation and edit prompts.')}
+                          {t('图片生成和图片编辑提示词。')}
                         </FormDescription>
                       </div>
                     </FormItem>
@@ -377,7 +375,7 @@ export function InternalReviewSection({
             name='internal_review.model_filter'
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('Model filter')}</FormLabel>
+                <FormLabel>{t('模型过滤')}</FormLabel>
                 <FormControl>
                   <Textarea
                     rows={4}
@@ -391,7 +389,7 @@ export function InternalReviewSection({
                 </FormControl>
                 <FormDescription>
                   {t(
-                    'Optional comma-separated model keywords. Prefix with ! to exclude. Empty applies to all models.'
+                    '可选，逗号或换行分隔模型关键词；前缀 ! 表示排除，留空表示所有模型。'
                   )}
                 </FormDescription>
                 <FormMessage />
@@ -402,7 +400,7 @@ export function InternalReviewSection({
           <Button type='submit' disabled={updateOption.isPending}>
             {updateOption.isPending
               ? t('Saving...')
-              : t('Save internal review')}
+              : t('保存内容审核设置')}
           </Button>
         </form>
       </Form>

@@ -81,6 +81,13 @@ const defaultModelSettings: ModelSettings = {
   'channel_affinity_setting.rules': '[]',
   'model_deployment.ionet.api_key': '',
   'model_deployment.ionet.enabled': false,
+  'internal_review.enabled': false,
+  'internal_review.endpoint': '',
+  'internal_review.bearer_token': '',
+  'internal_review.timeout_seconds': 10,
+  'internal_review.fail_closed': true,
+  'internal_review.scope': 'text,image',
+  'internal_review.model_filter': '',
 }
 
 export function ModelSettings() {

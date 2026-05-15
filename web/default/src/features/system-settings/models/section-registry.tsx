@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { ChannelAffinitySection } from '../general/channel-affinity'
 import { IoNetDeploymentSettingsSection } from '../integrations/ionet-deployment-settings-section'
+import { InternalReviewSection } from '../request-limits/internal-review-section'
 import type { ModelSettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
 import { ClaudeSettingsCard } from './claude-settings-card'
@@ -85,6 +86,28 @@ const MODELS_SECTIONS = [
             settings['monitor_setting.auto_test_channel_minutes'],
           'monitor_setting.channel_test_mode':
             settings['monitor_setting.channel_test_mode'],
+        }}
+      />
+    ),
+  },
+  {
+    id: 'content-review',
+    titleKey: '内容审核',
+    descriptionKey: '配置模型请求内容审核',
+    build: (settings: ModelSettings) => (
+      <InternalReviewSection
+        defaultValues={{
+          'internal_review.enabled': settings['internal_review.enabled'],
+          'internal_review.endpoint': settings['internal_review.endpoint'],
+          'internal_review.bearer_token':
+            settings['internal_review.bearer_token'],
+          'internal_review.timeout_seconds':
+            settings['internal_review.timeout_seconds'],
+          'internal_review.fail_closed':
+            settings['internal_review.fail_closed'],
+          'internal_review.scope': settings['internal_review.scope'],
+          'internal_review.model_filter':
+            settings['internal_review.model_filter'],
         }}
       />
     ),

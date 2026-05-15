@@ -245,6 +245,13 @@ export type ModelSettings = {
   'channel_affinity_setting.rules': string
   'model_deployment.ionet.api_key': string
   'model_deployment.ionet.enabled': boolean
+  'internal_review.enabled': boolean
+  'internal_review.endpoint': string
+  'internal_review.bearer_token': string
+  'internal_review.timeout_seconds': number
+  'internal_review.fail_closed': boolean
+  'internal_review.scope': string
+  'internal_review.model_filter': string
 }
 
 export type BillingSettings = {
@@ -387,13 +394,6 @@ export type SecuritySettings = {
   'fetch_setting.allowed_ports': number[]
   'fetch_setting.apply_ip_filter_for_domain': boolean
   'token_setting.max_user_tokens': number
-  'internal_review.enabled': boolean
-  'internal_review.endpoint': string
-  'internal_review.bearer_token': string
-  'internal_review.timeout_seconds': number
-  'internal_review.fail_closed': boolean
-  'internal_review.scope': string
-  'internal_review.model_filter': string
 }
 
 export type UpstreamChannel = {
