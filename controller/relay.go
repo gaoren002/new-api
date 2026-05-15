@@ -124,10 +124,11 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	}
 
 	needSensitiveCheck := setting.ShouldCheckPromptSensitive()
+	needInternalReviewMeta := service.ShouldPrepareInternalReviewMeta(relayInfo, request)
 	needCountToken := constant.CountToken
 	// Avoid building huge CombineText (strings.Join) when token counting and sensitive check are both disabled.
 	var meta *types.TokenCountMeta
-	if needSensitiveCheck || needCountToken {
+	if needSensitiveCheck || needInternalReviewMeta || needCountToken {
 		meta = request.GetTokenCountMeta()
 	} else {
 		meta = fastTokenCountMetaForPricing(request)
@@ -171,7 +172,9 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		// Only return quota if downstream failed and quota was actually pre-consumed
 		if newAPIError != nil {
 			newAPIError = service.NormalizeViolationFeeError(newAPIError)
-			if relayInfo.Billing != nil {
+			if service.ShouldKeepBillingForError(newAPIError) {
+				service.RecordInternalReviewBlockedConsume(c, relayInfo, service.InternalReviewDecisionFromRelayInfo(relayInfo), meta)
+			} else if relayInfo.Billing != nil {
 				relayInfo.Billing.Refund(c)
 			}
 			service.ChargeViolationFeeIfNeeded(c, relayInfo, newAPIError)
@@ -198,6 +201,14 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 
 		addUsedChannel(c, channel.Id)
+
+		if retryParam.GetRetry() == 0 {
+			_, newAPIError = service.InternalReviewRequest(c, relayInfo, request, meta)
+			if newAPIError != nil {
+				break
+			}
+		}
+
 		bodyStorage, bodyErr := common.GetBodyStorage(c)
 		if bodyErr != nil {
 			// Ensure consistent 413 for oversized bodies even when error occurs later (e.g., retry path)

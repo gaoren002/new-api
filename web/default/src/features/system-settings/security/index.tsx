@@ -42,6 +42,13 @@ const defaultSecuritySettings: SecuritySettings = {
   'fetch_setting.allowed_ports': [],
   'fetch_setting.apply_ip_filter_for_domain': false,
   'token_setting.max_user_tokens': 1000,
+  'internal_review.enabled': false,
+  'internal_review.endpoint': '',
+  'internal_review.bearer_token': '',
+  'internal_review.timeout_seconds': 10,
+  'internal_review.fail_closed': true,
+  'internal_review.scope': 'text,image',
+  'internal_review.model_filter': '',
 }
 
 export function SecuritySettings() {

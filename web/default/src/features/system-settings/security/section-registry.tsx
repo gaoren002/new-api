@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { InternalReviewSection } from '../request-limits/internal-review-section'
 import { RateLimitSection } from '../request-limits/rate-limit-section'
 import { SensitiveWordsSection } from '../request-limits/sensitive-words-section'
 import { SSRFSection } from '../request-limits/ssrf-section'
@@ -50,6 +51,28 @@ const SECURITY_SECTIONS = [
           CheckSensitiveEnabled: settings.CheckSensitiveEnabled,
           CheckSensitiveOnPromptEnabled: settings.CheckSensitiveOnPromptEnabled,
           SensitiveWords: settings.SensitiveWords,
+        }}
+      />
+    ),
+  },
+  {
+    id: 'internal-review',
+    titleKey: 'Internal Review',
+    descriptionKey: 'Configure internal request review',
+    build: (settings: SecuritySettings) => (
+      <InternalReviewSection
+        defaultValues={{
+          'internal_review.enabled': settings['internal_review.enabled'],
+          'internal_review.endpoint': settings['internal_review.endpoint'],
+          'internal_review.bearer_token':
+            settings['internal_review.bearer_token'],
+          'internal_review.timeout_seconds':
+            settings['internal_review.timeout_seconds'],
+          'internal_review.fail_closed':
+            settings['internal_review.fail_closed'],
+          'internal_review.scope': settings['internal_review.scope'],
+          'internal_review.model_filter':
+            settings['internal_review.model_filter'],
         }}
       />
     ),
