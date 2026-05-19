@@ -245,13 +245,6 @@ export type ModelSettings = {
   'channel_affinity_setting.rules': string
   'model_deployment.ionet.api_key': string
   'model_deployment.ionet.enabled': boolean
-  'internal_review.enabled': boolean
-  'internal_review.endpoint': string
-  'internal_review.bearer_token': string
-  'internal_review.timeout_seconds': number
-  'internal_review.fail_closed': boolean
-  'internal_review.scope': string
-  'internal_review.model_filter': string
 }
 
 export type BillingSettings = {
@@ -339,12 +332,6 @@ export type BillingSettings = {
   // section (saved via /api/option/waffo-pancake/save).
   WaffoPancakeStoreID: string
   WaffoPancakeProductID: string
-  'checkin_setting.enabled': boolean
-  'checkin_setting.min_quota': number
-  'checkin_setting.max_quota': number
-  'checkin_setting.tiered': boolean
-  'checkin_setting.tiers': string
-  'checkin_setting.fallback_mode': 'legacy' | 'none'
 }
 
 export type OperationsSettings = {
@@ -352,6 +339,14 @@ export type OperationsSettings = {
   DemoSiteEnabled: boolean
   SelfUseModeEnabled: boolean
   QuotaRemindThreshold: string
+  'checkin_setting.enabled': boolean
+  'checkin_setting.min_quota': number
+  'checkin_setting.max_quota': number
+  'checkin_setting.tiered': boolean
+  'checkin_setting.tiers': string
+  'checkin_setting.fallback_mode': 'legacy' | 'none'
+  QuotaPerUnit: number
+  USDExchangeRate: number
   SMTPServer: string
   SMTPPort: string
   SMTPAccount: string

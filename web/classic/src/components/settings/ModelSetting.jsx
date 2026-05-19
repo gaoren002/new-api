@@ -26,7 +26,6 @@ import SettingGeminiModel from '../../pages/Setting/Model/SettingGeminiModel';
 import SettingClaudeModel from '../../pages/Setting/Model/SettingClaudeModel';
 import SettingGlobalModel from '../../pages/Setting/Model/SettingGlobalModel';
 import SettingGrokModel from '../../pages/Setting/Model/SettingGrokModel';
-import SettingContentReview from '../../pages/Setting/Model/SettingContentReview';
 import SettingsChannelAffinity from '../../pages/Setting/Operation/SettingsChannelAffinity';
 
 const ModelSetting = () => {
@@ -49,13 +48,6 @@ const ModelSetting = () => {
     'gemini.thinking_adapter_budget_tokens_percentage': 0.6,
     'grok.violation_deduction_enabled': true,
     'grok.violation_deduction_amount': 0.05,
-    'internal_review.enabled': false,
-    'internal_review.endpoint': '',
-    'internal_review.bearer_token': '',
-    'internal_review.timeout_seconds': 10,
-    'internal_review.fail_closed': true,
-    'internal_review.scope': 'text',
-    'internal_review.model_filter': '',
   });
 
   let [loading, setLoading] = useState(false);
@@ -120,10 +112,6 @@ const ModelSetting = () => {
         {/* OpenAI */}
         <Card style={{ marginTop: '10px' }}>
           <SettingGlobalModel options={inputs} refresh={onRefresh} />
-        </Card>
-        {/* Content review */}
-        <Card style={{ marginTop: '10px' }}>
-          <SettingContentReview options={inputs} refresh={onRefresh} />
         </Card>
         {/* Channel affinity */}
         <Card style={{ marginTop: '10px' }}>
