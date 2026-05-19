@@ -54,7 +54,7 @@ const ModelSetting = () => {
     'internal_review.bearer_token': '',
     'internal_review.timeout_seconds': 10,
     'internal_review.fail_closed': true,
-    'internal_review.scope': 'text,image',
+    'internal_review.scope': 'text',
     'internal_review.model_filter': '',
   });
 

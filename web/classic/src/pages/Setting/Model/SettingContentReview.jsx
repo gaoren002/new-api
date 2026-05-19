@@ -34,27 +34,8 @@ const DEFAULT_CONTENT_REVIEW_INPUTS = {
   'internal_review.bearer_token': '',
   'internal_review.timeout_seconds': 10,
   'internal_review.fail_closed': true,
-  'internal_review.scope': 'text,image',
+  'internal_review.scope': 'text',
   'internal_review.model_filter': '',
-};
-
-const normalizeScopeChecks = (scope) => {
-  const scopes = String(scope || '')
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-  const all = scopes.includes('all');
-  return {
-    scope_text: all || scopes.includes('text'),
-    scope_image: all || scopes.includes('image'),
-  };
-};
-
-const buildScope = (inputs) => {
-  const scopes = [];
-  if (inputs.scope_text) scopes.push('text');
-  if (inputs.scope_image) scopes.push('image');
-  return scopes.join(',');
 };
 
 export default function SettingContentReview(props) {
@@ -63,13 +44,9 @@ export default function SettingContentReview(props) {
   const [loading, setLoading] = useState(false);
   const [inputs, setInputs] = useState({
     ...DEFAULT_CONTENT_REVIEW_INPUTS,
-    scope_text: true,
-    scope_image: true,
   });
   const [inputsRow, setInputsRow] = useState({
     ...DEFAULT_CONTENT_REVIEW_INPUTS,
-    scope_text: true,
-    scope_image: true,
   });
   const refForm = useRef();
 
@@ -92,7 +69,7 @@ export default function SettingContentReview(props) {
         values['internal_review.timeout_seconds'] || 10,
       ),
       'internal_review.fail_closed': values['internal_review.fail_closed'],
-      'internal_review.scope': buildScope(values),
+      'internal_review.scope': 'text',
       'internal_review.model_filter': modelFilter,
     };
   };
@@ -140,10 +117,7 @@ export default function SettingContentReview(props) {
         currentInputs[key] = props.options[key];
       }
     }
-    const formInputs = {
-      ...currentInputs,
-      ...normalizeScopeChecks(currentInputs['internal_review.scope']),
-    };
+    const formInputs = { ...currentInputs, 'internal_review.scope': 'text' };
 
     setInputs(formInputs);
     setInputsRow(structuredClone(formInputs));
@@ -248,27 +222,10 @@ export default function SettingContentReview(props) {
           </Row>
 
           <Row>
-            <Col xs={24} sm={12} md={8} lg={8} xl={8}>
-              <Form.Checkbox
-                field='scope_text'
-                onChange={(event) =>
-                  setInputs({ ...inputs, scope_text: event.target.checked })
-                }
-                extraText={t('Chat、Responses、Claude、Gemini 等文本请求。')}
-              >
-                {t('审核文本请求')}
-              </Form.Checkbox>
-            </Col>
-            <Col xs={24} sm={12} md={8} lg={8} xl={8}>
-              <Form.Checkbox
-                field='scope_image'
-                onChange={(event) =>
-                  setInputs({ ...inputs, scope_image: event.target.checked })
-                }
-                extraText={t('图片生成和图片编辑提示词。')}
-              >
-                {t('审核图片请求')}
-              </Form.Checkbox>
+            <Col span={24}>
+              <div style={{ marginBottom: 16, color: 'var(--semi-color-text-2)' }}>
+                {t('审核范围')}：{t('仅审核 Chat、Responses、Claude、Gemini 等文本请求。')}
+              </div>
             </Col>
           </Row>
 

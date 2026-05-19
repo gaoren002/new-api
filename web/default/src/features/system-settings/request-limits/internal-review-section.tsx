@@ -22,7 +22,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Form,
   FormControl,
@@ -60,8 +59,6 @@ const createInternalReviewSchema = (t: (key: string) => string) =>
     'internal_review.bearer_token': z.string(),
     'internal_review.timeout_seconds': z.number().min(1).max(120),
     'internal_review.fail_closed': z.boolean(),
-    scope_text: z.boolean(),
-    scope_image: z.boolean(),
     'internal_review.model_filter': z.string(),
   })
 
@@ -83,18 +80,6 @@ type InternalReviewSectionProps = {
   defaultValues: InternalReviewValues
 }
 
-const scopeToChecks = (scope: string) => {
-  const scopes = scope
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean)
-  const all = scopes.includes('all')
-  return {
-    scope_text: all || scopes.includes('text'),
-    scope_image: all || scopes.includes('image'),
-  }
-}
-
 const buildFormDefaults = (
   defaults: InternalReviewValues
 ): InternalReviewFormValues => ({
@@ -104,17 +89,12 @@ const buildFormDefaults = (
   'internal_review.timeout_seconds':
     defaults['internal_review.timeout_seconds'],
   'internal_review.fail_closed': defaults['internal_review.fail_closed'],
-  ...scopeToChecks(defaults['internal_review.scope']),
   'internal_review.model_filter': defaults['internal_review.model_filter'],
 })
 
 const normalizeFormValues = (
   values: InternalReviewFormValues
 ): InternalReviewValues => {
-  const scopes = [
-    values.scope_text ? 'text' : '',
-    values.scope_image ? 'image' : '',
-  ].filter(Boolean)
   const modelFilter = values['internal_review.model_filter']
     .split(/[\n,]+/)
     .map((item) => item.trim())
@@ -129,7 +109,7 @@ const normalizeFormValues = (
     'internal_review.timeout_seconds':
       values['internal_review.timeout_seconds'],
     'internal_review.fail_closed': values['internal_review.fail_closed'],
-    'internal_review.scope': scopes.join(','),
+    'internal_review.scope': 'text',
     'internal_review.model_filter': modelFilter,
   }
 }
@@ -323,50 +303,11 @@ export function InternalReviewSection({
               )}
             />
 
-            <div className='space-y-3'>
+            <div className='rounded-lg border p-4'>
               <FormLabel>{t('审核范围')}</FormLabel>
-              <div className='grid gap-3 rounded-lg border p-4'>
-                <FormField
-                  control={form.control}
-                  name='scope_text'
-                  render={({ field }) => (
-                    <FormItem className='flex flex-row items-start space-y-0 space-x-3'>
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className='space-y-1 leading-none'>
-                        <FormLabel>{t('文本请求')}</FormLabel>
-                        <FormDescription>
-                          {t('Chat、Responses、Claude、Gemini 等文本请求。')}
-                        </FormDescription>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name='scope_image'
-                  render={({ field }) => (
-                    <FormItem className='flex flex-row items-start space-y-0 space-x-3'>
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className='space-y-1 leading-none'>
-                        <FormLabel>{t('图片请求')}</FormLabel>
-                        <FormDescription>
-                          {t('图片生成和图片编辑提示词。')}
-                        </FormDescription>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormDescription className='mt-2'>
+                {t('仅审核 Chat、Responses、Claude、Gemini 等文本请求。')}
+              </FormDescription>
             </div>
           </div>
 

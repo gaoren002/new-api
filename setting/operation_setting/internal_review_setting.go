@@ -22,7 +22,7 @@ var internalReviewSetting = InternalReviewSetting{
 	BearerToken:    "",
 	TimeoutSeconds: 10,
 	FailClosed:     true,
-	Scope:          "text,image",
+	Scope:          "text",
 	ModelFilter:    "",
 }
 

@@ -209,6 +209,12 @@ export interface CheckinRecord {
   quota_awarded: number
 }
 
+export interface CheckinTier {
+  min_used_cny: number
+  min_cny: number
+  max_cny: number
+}
+
 /**
  * Checkin statistics
  */
@@ -231,6 +237,16 @@ export interface CheckinStats {
 export interface CheckinStatusResponse {
   /** Whether check-in feature is enabled */
   enabled: boolean
+  /** Legacy minimum quota reward */
+  min_quota?: number
+  /** Legacy maximum quota reward */
+  max_quota?: number
+  /** Whether cumulative usage tiers are enabled */
+  tiered?: boolean
+  /** Configured cumulative usage tiers */
+  tiers?: CheckinTier[]
+  /** The tier currently matched for this user */
+  matched_tier?: CheckinTier | null
   /** Check-in statistics */
   stats: CheckinStats
 }

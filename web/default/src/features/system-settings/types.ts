@@ -342,6 +342,9 @@ export type BillingSettings = {
   'checkin_setting.enabled': boolean
   'checkin_setting.min_quota': number
   'checkin_setting.max_quota': number
+  'checkin_setting.tiered': boolean
+  'checkin_setting.tiers': string
+  'checkin_setting.fallback_mode': 'legacy' | 'none'
 }
 
 export type OperationsSettings = {

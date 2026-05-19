@@ -110,6 +110,10 @@ const defaultBillingSettings: BillingSettings = {
   'checkin_setting.enabled': false,
   'checkin_setting.min_quota': 1000,
   'checkin_setting.max_quota': 10000,
+  'checkin_setting.tiered': false,
+  'checkin_setting.tiers':
+    '[{"min_used_cny":0,"min_cny":0,"max_cny":0.2},{"min_used_cny":100,"min_cny":0,"max_cny":1},{"min_used_cny":300,"min_cny":0,"max_cny":2},{"min_used_cny":1000,"min_cny":0,"max_cny":5}]',
+  'checkin_setting.fallback_mode': 'legacy',
 }
 
 export function BillingSettings() {

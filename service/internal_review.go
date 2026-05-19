@@ -23,8 +23,7 @@ import (
 )
 
 const (
-	internalReviewScopeText  = "text"
-	internalReviewScopeImage = "image"
+	internalReviewScopeText = "text"
 )
 
 type InternalReviewDecision struct {
@@ -210,8 +209,6 @@ func internalReviewConfigError(message string) *types.NewAPIError {
 
 func internalReviewScopeForRequest(request dto.Request) string {
 	switch request.(type) {
-	case *dto.ImageRequest:
-		return internalReviewScopeImage
 	case *dto.GeneralOpenAIRequest, *dto.OpenAIResponsesRequest, *dto.OpenAIResponsesCompactionRequest, *dto.ClaudeRequest, *dto.GeminiChatRequest:
 		return internalReviewScopeText
 	default:

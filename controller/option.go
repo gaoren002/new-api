@@ -76,6 +76,25 @@ func buildCompletionRatioMetaValue(optionValues map[string]string) string {
 	return string(jsonBytes)
 }
 
+func validateCheckinTiers(raw string) error {
+	var tiers []operation_setting.CheckinTier
+	if err := common.UnmarshalJsonStr(raw, &tiers); err != nil {
+		return fmt.Errorf("签到分层配置必须是合法 JSON 数组")
+	}
+	for i, tier := range tiers {
+		if tier.MinUsedCNY < 0 {
+			return fmt.Errorf("签到分层第 %d 行的累计使用门槛不能小于 0", i+1)
+		}
+		if tier.MinCNY < 0 || tier.MaxCNY < 0 {
+			return fmt.Errorf("签到分层第 %d 行的奖励金额不能小于 0", i+1)
+		}
+		if tier.MaxCNY < tier.MinCNY {
+			return fmt.Errorf("签到分层第 %d 行的最大奖励不能小于最小奖励", i+1)
+		}
+	}
+	return nil
+}
+
 func GetOptions(c *gin.Context) {
 	var options []*model.Option
 	optionValues := make(map[string]string)
@@ -306,14 +325,32 @@ func UpdateOption(c *gin.Context) {
 				continue
 			}
 			switch scope {
-			case "all", "text", "image":
+			case "all", "text":
 			default:
 				c.JSON(http.StatusOK, gin.H{
 					"success": false,
-					"message": "内审审核范围仅支持 all、text、image",
+					"message": "内审审核范围仅支持 all、text",
 				})
 				return
 			}
+		}
+	case "checkin_setting.tiers":
+		if err := validateCheckinTiers(option.Value.(string)); err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": err.Error(),
+			})
+			return
+		}
+	case "checkin_setting.fallback_mode":
+		switch strings.TrimSpace(option.Value.(string)) {
+		case "legacy", "none":
+		default:
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "签到分层兜底方式仅支持 legacy 或 none",
+			})
+			return
 		}
 	case "AutomaticDisableStatusCodes":
 		_, err = operation_setting.ParseHTTPStatusCodeRanges(option.Value.(string))

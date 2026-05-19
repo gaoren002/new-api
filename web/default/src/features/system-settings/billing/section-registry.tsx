@@ -203,6 +203,12 @@ const BILLING_SECTIONS = [
           enabled: settings['checkin_setting.enabled'],
           minQuota: settings['checkin_setting.min_quota'],
           maxQuota: settings['checkin_setting.max_quota'],
+          tiered: settings['checkin_setting.tiered'] ?? false,
+          tiers: settings['checkin_setting.tiers'] ?? '[]',
+          fallbackMode:
+            settings['checkin_setting.fallback_mode'] ?? 'legacy',
+          quotaPerUnit: settings.QuotaPerUnit ?? 500000,
+          usdExchangeRate: settings.USDExchangeRate ?? 7,
         }}
       />
     ),

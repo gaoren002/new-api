@@ -1,6 +1,10 @@
 package service
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/QuantumNous/new-api/dto"
+)
 
 func boolPtr(v bool) *bool {
 	return &v
@@ -74,5 +78,14 @@ func TestInternalReviewModelAllowed(t *testing.T) {
 				t.Fatalf("internalReviewModelAllowed(%q, %q) = %v, want %v", tt.modelName, tt.filter, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestInternalReviewScopeForRequestSkipsImageRequests(t *testing.T) {
+	if got := internalReviewScopeForRequest(&dto.ImageRequest{}); got != "" {
+		t.Fatalf("internalReviewScopeForRequest(ImageRequest) = %q, want empty", got)
+	}
+	if got := internalReviewScopeForRequest(&dto.GeneralOpenAIRequest{}); got != internalReviewScopeText {
+		t.Fatalf("internalReviewScopeForRequest(GeneralOpenAIRequest) = %q, want %q", got, internalReviewScopeText)
 	}
 }
