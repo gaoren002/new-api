@@ -84,6 +84,24 @@ function normalizeTiers(tiers) {
     .sort((a, b) => a.min_used_cny - b.min_used_cny);
 }
 
+function getDisplayUnitLabel(options = {}) {
+  const displayType = options['general_setting.quota_display_type'] || 'USD';
+  switch (displayType) {
+    case 'CNY':
+      return 'CNY';
+    case 'TOKENS':
+      return '额度';
+    case 'CUSTOM':
+      return (
+        String(options['general_setting.custom_currency_symbol'] || '').trim() ||
+        '自定义货币'
+      );
+    case 'USD':
+    default:
+      return 'USD';
+  }
+}
+
 export default function SettingsCheckin(props) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
@@ -102,6 +120,7 @@ export default function SettingsCheckin(props) {
   const [tiers, setTiers] = useState(DEFAULT_TIERS);
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(defaultInputs);
+  const displayUnitLabel = getDisplayUnitLabel(props.options);
 
   function handleFieldChange(fieldName) {
     return (value) => {
@@ -207,7 +226,7 @@ export default function SettingsCheckin(props) {
 
   const columns = [
     {
-      title: t('累计使用门槛') + ' (¥)',
+      title: `${t('累计使用门槛')} (${displayUnitLabel})`,
       dataIndex: 'min_used_cny',
       render: (value, record, index) => (
         <InputNumber
@@ -221,7 +240,7 @@ export default function SettingsCheckin(props) {
       ),
     },
     {
-      title: t('最小奖励') + ' (¥)',
+      title: `${t('最小奖励')} (${displayUnitLabel})`,
       dataIndex: 'min_cny',
       render: (value, record, index) => (
         <InputNumber
@@ -234,7 +253,7 @@ export default function SettingsCheckin(props) {
       ),
     },
     {
-      title: t('最大奖励') + ' (¥)',
+      title: `${t('最大奖励')} (${displayUnitLabel})`,
       dataIndex: 'max_cny',
       render: (value, record, index) => (
         <InputNumber
@@ -275,7 +294,9 @@ export default function SettingsCheckin(props) {
               type='tertiary'
               style={{ marginBottom: 16, display: 'block' }}
             >
-              {t('签到功能允许用户每日签到获取随机额度奖励')}
+              {t(
+                '签到功能允许用户每日签到获取随机额度奖励。分层档位按当前额度显示单位配置。',
+              )}
             </Typography.Text>
             <Row gutter={16}>
               <Col xs={24} sm={12} md={8} lg={8} xl={8}>

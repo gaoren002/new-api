@@ -76,6 +76,12 @@ const OPERATIONS_SECTIONS = [
             settings['checkin_setting.fallback_mode'] ?? 'legacy',
           quotaPerUnit: settings.QuotaPerUnit ?? 500000,
           usdExchangeRate: settings.USDExchangeRate ?? 7,
+          quotaDisplayType:
+            settings['general_setting.quota_display_type'] ?? 'USD',
+          customCurrencySymbol:
+            settings['general_setting.custom_currency_symbol'] ?? '¤',
+          customCurrencyExchangeRate:
+            settings['general_setting.custom_currency_exchange_rate'] ?? 1,
         }}
       />
     ),

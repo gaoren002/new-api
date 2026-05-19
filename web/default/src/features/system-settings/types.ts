@@ -347,6 +347,9 @@ export type OperationsSettings = {
   'checkin_setting.fallback_mode': 'legacy' | 'none'
   QuotaPerUnit: number
   USDExchangeRate: number
+  'general_setting.quota_display_type': string
+  'general_setting.custom_currency_symbol': string
+  'general_setting.custom_currency_exchange_rate': number
   SMTPServer: string
   SMTPPort: string
   SMTPAccount: string

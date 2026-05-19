@@ -97,8 +97,8 @@ func calculateCheckinQuota(userId int, setting *operation_setting.CheckinSetting
 			return 0, err
 		}
 		if tier, ok := operation_setting.GetCheckinTierForUsedQuota(usedQuota); ok {
-			minQuota := operation_setting.CNYToQuota(tier.MinCNY)
-			maxQuota := operation_setting.CNYToQuota(tier.MaxCNY)
+			minQuota := operation_setting.DisplayAmountToQuota(tier.MinCNY)
+			maxQuota := operation_setting.DisplayAmountToQuota(tier.MaxCNY)
 			return randomQuotaInRange(minQuota, maxQuota), nil
 		}
 		if operation_setting.GetCheckinFallbackMode() == "none" {

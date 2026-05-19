@@ -9,6 +9,7 @@ import (
 )
 
 type CheckinTier struct {
+	// JSON 字段名保留 cny 以兼容已保存配置；实际语义跟随站点当前额度显示货币。
 	MinUsedCNY int     `json:"min_used_cny"`
 	MinCNY     float64 `json:"min_cny"`
 	MaxCNY     float64 `json:"max_cny"`
@@ -83,11 +84,11 @@ func GetCheckinTierForUsedQuota(usedQuota int) (CheckinTier, bool) {
 	if len(tiers) == 0 {
 		return CheckinTier{}, false
 	}
-	usedCNY := QuotaToCNY(usedQuota)
+	usedDisplayAmount := QuotaToDisplayAmount(usedQuota)
 	var matched CheckinTier
 	ok := false
 	for _, tier := range tiers {
-		if usedCNY >= float64(tier.MinUsedCNY) {
+		if usedDisplayAmount >= float64(tier.MinUsedCNY) {
 			matched = tier
 			ok = true
 			continue
@@ -95,6 +96,62 @@ func GetCheckinTierForUsedQuota(usedQuota int) (CheckinTier, bool) {
 		break
 	}
 	return matched, ok
+}
+
+func DisplayAmountToQuota(amount float64) int {
+	if amount <= 0 {
+		return 0
+	}
+	switch GetQuotaDisplayType() {
+	case QuotaDisplayTypeTokens:
+		return int(math.Round(amount))
+	case QuotaDisplayTypeCNY:
+		return currencyAmountToQuota(amount, USDExchangeRate)
+	case QuotaDisplayTypeCustom:
+		return currencyAmountToQuota(amount, GetGeneralSetting().CustomCurrencyExchangeRate)
+	case QuotaDisplayTypeUSD:
+		fallthrough
+	default:
+		return currencyAmountToQuota(amount, 1)
+	}
+}
+
+func QuotaToDisplayAmount(quota int) float64 {
+	if quota <= 0 {
+		return 0
+	}
+	switch GetQuotaDisplayType() {
+	case QuotaDisplayTypeTokens:
+		return float64(quota)
+	case QuotaDisplayTypeCNY:
+		return quotaToCurrencyAmount(quota, USDExchangeRate)
+	case QuotaDisplayTypeCustom:
+		return quotaToCurrencyAmount(quota, GetGeneralSetting().CustomCurrencyExchangeRate)
+	case QuotaDisplayTypeUSD:
+		fallthrough
+	default:
+		return quotaToCurrencyAmount(quota, 1)
+	}
+}
+
+func currencyAmountToQuota(amount, usdToCurrencyRate float64) int {
+	rate := usdToCurrencyRate
+	if rate <= 0 {
+		rate = 1
+	}
+	quota := amount / rate * common.QuotaPerUnit
+	if quota <= 0 {
+		return 0
+	}
+	return int(math.Round(quota))
+}
+
+func quotaToCurrencyAmount(quota int, usdToCurrencyRate float64) float64 {
+	rate := usdToCurrencyRate
+	if rate <= 0 {
+		rate = 1
+	}
+	return float64(quota) / common.QuotaPerUnit * rate
 }
 
 func CNYToQuota(amountCNY float64) int {

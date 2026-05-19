@@ -59,7 +59,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { formatCurrencyFromUSD } from '@/lib/currency'
+import type { CurrencyDisplayType } from '@/stores/system-config-store'
 import { SettingsSection } from '../components/settings-section'
 import { useResetForm } from '../hooks/use-reset-form'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -142,10 +142,92 @@ function quotaToUSD(quota: number, quotaPerUnit: number) {
   return quota / unit
 }
 
-function formatCNY(amount: number) {
+function parseDisplayType(value: string | undefined): CurrencyDisplayType {
+  switch (value) {
+    case 'CNY':
+    case 'TOKENS':
+    case 'CUSTOM':
+    case 'USD':
+      return value
+    default:
+      return 'USD'
+  }
+}
+
+function getDisplayUnitLabel(
+  displayType: CurrencyDisplayType,
+  customSymbol: string
+) {
+  switch (displayType) {
+    case 'CNY':
+      return 'CNY'
+    case 'TOKENS':
+      return '额度'
+    case 'CUSTOM':
+      return customSymbol?.trim() || '自定义货币'
+    case 'USD':
+    default:
+      return 'USD'
+  }
+}
+
+function getDisplayExchangeRate(
+  displayType: CurrencyDisplayType,
+  usdExchangeRate: number,
+  customExchangeRate: number
+) {
+  switch (displayType) {
+    case 'CNY':
+      return usdExchangeRate > 0 ? usdExchangeRate : 7.3
+    case 'CUSTOM':
+      return customExchangeRate > 0 ? customExchangeRate : 1
+    case 'USD':
+    default:
+      return 1
+  }
+}
+
+function quotaToDisplayAmount(
+  quota: number,
+  options: {
+    quotaPerUnit: number
+    usdExchangeRate: number
+    quotaDisplayType: CurrencyDisplayType
+    customCurrencyExchangeRate: number
+  }
+) {
+  if (options.quotaDisplayType === 'TOKENS') return quota
+  const amountUSD = quotaToUSD(quota, options.quotaPerUnit)
+  return (
+    amountUSD *
+    getDisplayExchangeRate(
+      options.quotaDisplayType,
+      options.usdExchangeRate,
+      options.customCurrencyExchangeRate
+    )
+  )
+}
+
+function formatDisplayAmount(
+  amount: number,
+  displayType: CurrencyDisplayType,
+  customSymbol: string
+) {
+  if (displayType === 'TOKENS') {
+    return new Intl.NumberFormat(undefined, {
+      maximumFractionDigits: 0,
+    }).format(amount)
+  }
+  if (displayType === 'CUSTOM') {
+    const formatted = new Intl.NumberFormat(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: amount >= 1 ? 2 : 4,
+    }).format(amount)
+    return `${customSymbol?.trim() || '¤'}${formatted}`
+  }
   return new Intl.NumberFormat(undefined, {
     style: 'currency',
-    currency: 'CNY',
+    currency: displayType,
     currencyDisplay: 'narrowSymbol',
     minimumFractionDigits: 0,
     maximumFractionDigits: amount >= 1 ? 2 : 4,
@@ -164,6 +246,9 @@ export function CheckinSettingsSection({
     fallbackMode: 'legacy' | 'none'
     quotaPerUnit: number
     usdExchangeRate: number
+    quotaDisplayType: string
+    customCurrencySymbol: string
+    customCurrencyExchangeRate: number
   }
 }) {
   const { t } = useTranslation()
@@ -192,6 +277,12 @@ export function CheckinSettingsSection({
   const enabled = form.watch('enabled')
   const tiered = form.watch('tiered')
   const tiers = form.watch('tiers') || []
+  const displayType = parseDisplayType(defaultValues.quotaDisplayType)
+  const displayUnitLabel = getDisplayUnitLabel(
+    displayType,
+    defaultValues.customCurrencySymbol
+  )
+  const amountInputStep = displayType === 'TOKENS' ? 1 : 0.01
 
   const addTier = () => {
     const lastTier = tiers[tiers.length - 1]
@@ -279,14 +370,18 @@ export function CheckinSettingsSection({
     form.reset({ ...values, tiers: normalizedTiers })
   }
 
-  const legacyMinUSD = quotaToUSD(
-    form.watch('minQuota'),
-    defaultValues.quotaPerUnit
-  )
-  const legacyMaxUSD = quotaToUSD(
-    form.watch('maxQuota'),
-    defaultValues.quotaPerUnit
-  )
+  const legacyMinAmount = quotaToDisplayAmount(form.watch('minQuota'), {
+    quotaPerUnit: defaultValues.quotaPerUnit,
+    usdExchangeRate: defaultValues.usdExchangeRate,
+    quotaDisplayType: displayType,
+    customCurrencyExchangeRate: defaultValues.customCurrencyExchangeRate,
+  })
+  const legacyMaxAmount = quotaToDisplayAmount(form.watch('maxQuota'), {
+    quotaPerUnit: defaultValues.quotaPerUnit,
+    usdExchangeRate: defaultValues.usdExchangeRate,
+    quotaDisplayType: displayType,
+    customCurrencyExchangeRate: defaultValues.customCurrencyExchangeRate,
+  })
 
   return (
     <SettingsSection title={t('Check-in Settings')}>
@@ -334,7 +429,10 @@ export function CheckinSettingsSection({
                         {t('启用累计使用分层签到')}
                       </FormLabel>
                       <FormDescription>
-                        {t('按用户累计已使用金额匹配分层，再随机发放对应人民币金额。')}
+                        {t(
+                          '按用户累计已使用额度匹配分层，再随机发放当前显示单位对应额度。当前单位：{{unit}}',
+                          { unit: displayUnitLabel }
+                        )}
                       </FormDescription>
                     </div>
                     <FormControl>
@@ -365,7 +463,11 @@ export function CheckinSettingsSection({
                           />
                         </FormControl>
                         <FormDescription>
-                          {formatCurrencyFromUSD(legacyMinUSD)}
+                          {formatDisplayAmount(
+                            legacyMinAmount,
+                            displayType,
+                            defaultValues.customCurrencySymbol
+                          )}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -387,7 +489,11 @@ export function CheckinSettingsSection({
                           />
                         </FormControl>
                         <FormDescription>
-                          {formatCurrencyFromUSD(legacyMaxUSD)}
+                          {formatDisplayAmount(
+                            legacyMaxAmount,
+                            displayType,
+                            defaultValues.customCurrencySymbol
+                          )}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -402,9 +508,15 @@ export function CheckinSettingsSection({
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>{t('累计使用门槛')}</TableHead>
-                          <TableHead>{t('最小奖励')}</TableHead>
-                          <TableHead>{t('最大奖励')}</TableHead>
+                          <TableHead>
+                            {t('累计使用门槛')} ({displayUnitLabel})
+                          </TableHead>
+                          <TableHead>
+                            {t('最小奖励')} ({displayUnitLabel})
+                          </TableHead>
+                          <TableHead>
+                            {t('最大奖励')} ({displayUnitLabel})
+                          </TableHead>
                           <TableHead className='w-16 text-right'>
                             {t('Actions')}
                           </TableHead>
@@ -438,7 +550,11 @@ export function CheckinSettingsSection({
                                       />
                                     </FormControl>
                                     <FormDescription>
-                                      {formatCNY(Number(field.value) || 0)}
+                                      {formatDisplayAmount(
+                                        Number(field.value) || 0,
+                                        displayType,
+                                        defaultValues.customCurrencySymbol
+                                      )}
                                     </FormDescription>
                                     <FormMessage />
                                   </FormItem>
@@ -455,7 +571,7 @@ export function CheckinSettingsSection({
                                       <Input
                                         type='number'
                                         min={0}
-                                        step={0.01}
+                                        step={amountInputStep}
                                         value={field.value}
                                         onBlur={field.onBlur}
                                         name={field.name}
@@ -484,7 +600,7 @@ export function CheckinSettingsSection({
                                       <Input
                                         type='number'
                                         min={0}
-                                        step={0.01}
+                                        step={amountInputStep}
                                         value={field.value}
                                         onBlur={field.onBlur}
                                         name={field.name}
@@ -499,7 +615,11 @@ export function CheckinSettingsSection({
                                       />
                                     </FormControl>
                                     <FormDescription>
-                                      {formatCNY(Number(field.value) || 0)}
+                                      {formatDisplayAmount(
+                                        Number(field.value) || 0,
+                                        displayType,
+                                        defaultValues.customCurrencySymbol
+                                      )}
                                     </FormDescription>
                                     <FormMessage />
                                   </FormItem>
