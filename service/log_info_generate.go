@@ -113,26 +113,8 @@ func GenerateTextOtherInfo(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, m
 	appendFinalRequestFormat(relayInfo, other)
 	appendBillingInfo(relayInfo, other)
 	appendParamOverrideInfo(relayInfo, other)
-	appendInternalReviewInfo(relayInfo, other)
 	appendStreamStatus(relayInfo, other)
 	return other
-}
-
-func appendInternalReviewInfo(relayInfo *relaycommon.RelayInfo, other map[string]interface{}) {
-	if relayInfo == nil || other == nil || !IsInternalReviewApplied(relayInfo) {
-		return
-	}
-	other["internal_review"] = true
-	if decision := InternalReviewDecisionFromRelayInfo(relayInfo); decision != nil {
-		other["internal_review_allowed"] = decision.Allowed
-		other["internal_review_blocked"] = decision.Blocked
-		if decision.Reason != "" {
-			other["internal_review_reason"] = decision.Reason
-		}
-		if decision.Code != "" {
-			other["internal_review_code"] = decision.Code
-		}
-	}
 }
 
 func appendParamOverrideInfo(relayInfo *relaycommon.RelayInfo, other map[string]interface{}) {

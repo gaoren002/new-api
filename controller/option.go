@@ -3,7 +3,6 @@ package controller
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -296,43 +295,6 @@ func UpdateOption(c *gin.Context) {
 				"message": err.Error(),
 			})
 			return
-		}
-	case "internal_review.endpoint":
-		endpoint := strings.TrimSpace(option.Value.(string))
-		if endpoint != "" {
-			parsed, parseErr := url.Parse(endpoint)
-			if parseErr != nil || parsed.Scheme == "" || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-				c.JSON(http.StatusOK, gin.H{
-					"success": false,
-					"message": "内审审核接口地址必须是有效的 HTTP/HTTPS URL",
-				})
-				return
-			}
-		}
-	case "internal_review.timeout_seconds":
-		timeout, parseErr := strconv.Atoi(option.Value.(string))
-		if parseErr != nil || timeout <= 0 || timeout > 120 {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": "内审审核超时时间必须为 1 到 120 秒",
-			})
-			return
-		}
-	case "internal_review.scope":
-		for _, scope := range strings.Split(option.Value.(string), ",") {
-			scope = strings.TrimSpace(scope)
-			if scope == "" {
-				continue
-			}
-			switch scope {
-			case "all", "text":
-			default:
-				c.JSON(http.StatusOK, gin.H{
-					"success": false,
-					"message": "内审审核范围仅支持 all、text",
-				})
-				return
-			}
 		}
 	case "checkin_setting.tiers":
 		if err := validateCheckinTiers(option.Value.(string)); err != nil {
