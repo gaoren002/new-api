@@ -3704,6 +3704,17 @@
     "默认折叠侧边栏": "Сворачивать боковую панель по умолчанию",
     "默认测试模型": "Модель для тестирования по умолчанию",
     "默认用户消息": "Здравствуйте",
-    "默认补全倍率": "Коэффициент завершения по умолчанию"
+    "默认补全倍率": "Коэффициент завершения по умолчанию",
+    "签到层级奖励": "Check-in tier reward",
+    "签到奖励按累计 API 使用额度分层，更多使用可解锁更高每日签到奖励。": "Check-in rewards are based on cumulative API usage. More usage unlocks higher daily rewards.",
+    "当前奖励区间": "Current reward range",
+    "累计使用": "Cumulative usage",
+    "当前层级门槛": "Current tier threshold",
+    "下一层级": "Next tier",
+    "最高层级": "Highest tier",
+    "再使用": "Use another",
+    "已解锁": "Unlocked",
+    "下一层级奖励区间": "Next tier reward range",
+    "分层签到奖励鼓励活跃使用 API，不按充值金额计算。": "Tiered check-in rewards encourage active API usage, not recharge amount."
   }
 }

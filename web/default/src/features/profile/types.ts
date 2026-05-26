@@ -215,6 +215,21 @@ export interface CheckinTier {
   max_cny: number
 }
 
+export interface CheckinTierProgress {
+  used_quota: number
+  used_display_amount: number
+  current_tier?: CheckinTier | null
+  current_tier_min_used_quota: number
+  current_reward_min_quota: number
+  current_reward_max_quota: number
+  next_tier?: CheckinTier | null
+  next_tier_min_used_quota: number
+  next_reward_min_quota: number
+  next_reward_max_quota: number
+  amount_to_next_tier_display_amount: number
+  amount_to_next_tier_quota: number
+}
+
 /**
  * Checkin statistics
  */
@@ -247,6 +262,8 @@ export interface CheckinStatusResponse {
   tiers?: CheckinTier[]
   /** The tier currently matched for this user */
   matched_tier?: CheckinTier | null
+  /** Current user's tier progress when tiered check-in is enabled */
+  tier_progress?: CheckinTierProgress | null
   /** Check-in statistics */
   stats: CheckinStats
 }

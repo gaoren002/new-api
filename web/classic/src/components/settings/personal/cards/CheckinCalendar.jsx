@@ -81,6 +81,16 @@ const CheckinCalendar = ({ t, status, turnstileEnabled, turnstileSiteKey }) => {
     );
   }, [checkinData.stats?.records]);
 
+  const tierProgress = checkinData.tier_progress;
+  const currentRewardText =
+    checkinData.tiered && tierProgress
+      ? `${renderQuota(tierProgress.current_reward_min_quota, 6)} - ${renderQuota(tierProgress.current_reward_max_quota, 6)}`
+      : null;
+  const nextRewardText =
+    checkinData.tiered && tierProgress?.next_tier
+      ? `${renderQuota(tierProgress.next_reward_min_quota, 6)} - ${renderQuota(tierProgress.next_reward_max_quota, 6)}`
+      : null;
+
   // 获取签到状态
   const fetchCheckinStatus = async (month) => {
     const isFirstLoad = !initialLoaded;
@@ -310,6 +320,62 @@ const CheckinCalendar = ({ t, status, turnstileEnabled, turnstileSiteKey }) => {
           </div>
         </div>
 
+        {checkinData.tiered && tierProgress ? (
+          <div className='mb-4 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900 rounded-lg'>
+            <div className='flex flex-col gap-3 md:flex-row md:items-start md:justify-between'>
+              <div>
+                <div className='text-sm font-semibold text-blue-700 dark:text-blue-300'>
+                  {t('签到层级奖励')}
+                </div>
+                <div className='mt-1 text-xs text-gray-600 dark:text-gray-300 leading-relaxed'>
+                  {t(
+                    '签到奖励按累计 API 使用额度分层，更多使用可解锁更高每日签到奖励。',
+                  )}
+                </div>
+              </div>
+              <div className='shrink-0 rounded-lg border bg-white/80 dark:bg-slate-900/80 px-3 py-2'>
+                <div className='text-[11px] text-gray-500'>
+                  {t('当前奖励区间')}
+                </div>
+                <div className='text-sm font-semibold tabular-nums'>
+                  {currentRewardText}
+                </div>
+              </div>
+            </div>
+            <div className='grid grid-cols-1 md:grid-cols-3 gap-2 mt-3'>
+              <div className='rounded-lg border bg-white/80 dark:bg-slate-900/80 p-2.5'>
+                <div className='text-[11px] text-gray-500'>{t('累计使用')}</div>
+                <div className='mt-1 text-sm font-semibold tabular-nums'>
+                  {renderQuota(tierProgress.used_quota, 6)}
+                </div>
+              </div>
+              <div className='rounded-lg border bg-white/80 dark:bg-slate-900/80 p-2.5'>
+                <div className='text-[11px] text-gray-500'>
+                  {t('当前层级门槛')}
+                </div>
+                <div className='mt-1 text-sm font-semibold tabular-nums'>
+                  {renderQuota(tierProgress.current_tier_min_used_quota, 6)}
+                </div>
+              </div>
+              <div className='rounded-lg border bg-white/80 dark:bg-slate-900/80 p-2.5'>
+                <div className='text-[11px] text-gray-500'>
+                  {tierProgress.next_tier ? t('下一层级') : t('最高层级')}
+                </div>
+                <div className='mt-1 text-sm font-semibold tabular-nums'>
+                  {tierProgress.next_tier
+                    ? `${t('再使用')} ${renderQuota(tierProgress.amount_to_next_tier_quota, 6)}`
+                    : t('已解锁')}
+                </div>
+              </div>
+            </div>
+            {tierProgress.next_tier ? (
+              <div className='mt-2 text-xs text-gray-500'>
+                {t('下一层级奖励区间')}: {nextRewardText}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         {/* 签到日历 - 使用更紧凑的样式 */}
         <Spin spinning={loading}>
           <div className='border rounded-lg overflow-hidden checkin-calendar'>
@@ -371,6 +437,9 @@ const CheckinCalendar = ({ t, status, turnstileEnabled, turnstileSiteKey }) => {
           <Typography.Text type='tertiary' className='text-xs'>
             <ul className='list-disc list-inside space-y-0.5'>
               <li>{t('每日签到可获得随机额度奖励')}</li>
+              {checkinData.tiered ? (
+                <li>{t('分层签到奖励鼓励活跃使用 API，不按充值金额计算。')}</li>
+              ) : null}
               <li>{t('签到奖励将直接添加到您的账户余额')}</li>
               <li>{t('每日仅可签到一次，请勿重复签到')}</li>
             </ul>

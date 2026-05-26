@@ -5072,6 +5072,19 @@
     "Zero retention": "零数据保留",
     "Zhipu": "智谱",
     "Zhipu V4": "智谱 V4",
-    "Zoom": "缩放"
+    "Zoom": "缩放",
+    "Check-in tier reward": "签到层级奖励",
+    "Check-in rewards are based on your cumulative API usage. Use more API credits to unlock higher daily rewards.": "签到奖励按累计 API 使用额度分层，更多使用可解锁更高每日签到奖励。",
+    "Current reward range": "当前奖励区间",
+    "Cumulative usage": "累计使用",
+    "Current tier threshold": "当前层级门槛",
+    "Next tier": "下一层级",
+    "Highest tier": "最高层级",
+    "Use": "使用",
+    "more": "更多",
+    "Unlocked": "已解锁",
+    "Next tier reward range": "下一层级奖励区间",
+    "Tiered check-in rewards encourage active API usage, not recharge amount.": "分层签到奖励鼓励活跃使用 API，不按充值金额计算。",
+    "Use {{amount}} more": "再使用 {{amount}}"
   }
 }
