@@ -166,6 +166,7 @@ func appendBillingInfo(relayInfo *relaycommon.RelayInfo, other *model.LogOther) 
 	if relayInfo == nil || other == nil {
 		return
 	}
+	appendDataConsentBillingInfo(relayInfo, other)
 	// billing_source: "wallet" or "subscription"
 	if relayInfo.BillingSource != "" {
 		other.SetPublic("billing_source", relayInfo.BillingSource)
@@ -213,6 +214,18 @@ func appendBillingInfo(relayInfo *relaycommon.RelayInfo, other *model.LogOther) 
 		}
 		// Wallet quota is not deducted when billed from subscription.
 		other.SetPublic("wallet_quota_deducted", 0)
+	}
+}
+
+func appendDataConsentBillingInfo(relayInfo *relaycommon.RelayInfo, other *model.LogOther) {
+	info := DataConsentStateForRelayInfo(relayInfo)
+	other.SetPublic("data_consent_enabled", info.Enabled)
+	other.SetPublic("data_consent_status", info.Status)
+	other.SetPublic("data_consent_authorized", info.Authorized)
+	other.SetPublic("data_consent_price_multiplier", info.Multiplier)
+	other.SetPublic("data_consent_agreement_version", info.AgreementVersion)
+	if info.UserVersion != "" {
+		other.SetPublic("data_consent_user_version", info.UserVersion)
 	}
 }
 
@@ -308,6 +321,7 @@ func GenerateMjOtherInfo(relayInfo *relaycommon.RelayInfo, priceData hosttypes.P
 		other.SetPublic("user_group_ratio", priceData.GroupRatioInfo.GroupSpecialRatio)
 	}
 	appendRequestPath(nil, relayInfo, other)
+	appendDataConsentBillingInfo(relayInfo, other)
 	return other
 }
 
