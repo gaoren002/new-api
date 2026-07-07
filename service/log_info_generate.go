@@ -156,6 +156,7 @@ func appendBillingInfo(relayInfo *relaycommon.RelayInfo, other map[string]interf
 	if relayInfo == nil || other == nil {
 		return
 	}
+	appendDataConsentBillingInfo(relayInfo, other)
 	// billing_source: "wallet" or "subscription"
 	if relayInfo.BillingSource != "" {
 		other["billing_source"] = relayInfo.BillingSource
@@ -203,6 +204,18 @@ func appendBillingInfo(relayInfo *relaycommon.RelayInfo, other map[string]interf
 		}
 		// Wallet quota is not deducted when billed from subscription.
 		other["wallet_quota_deducted"] = 0
+	}
+}
+
+func appendDataConsentBillingInfo(relayInfo *relaycommon.RelayInfo, other map[string]interface{}) {
+	info := DataConsentStateForRelayInfo(relayInfo)
+	other["data_consent_enabled"] = info.Enabled
+	other["data_consent_status"] = info.Status
+	other["data_consent_authorized"] = info.Authorized
+	other["data_consent_price_multiplier"] = info.Multiplier
+	other["data_consent_agreement_version"] = info.AgreementVersion
+	if info.UserVersion != "" {
+		other["data_consent_user_version"] = info.UserVersion
 	}
 }
 
@@ -298,6 +311,7 @@ func GenerateMjOtherInfo(relayInfo *relaycommon.RelayInfo, priceData hosttypes.P
 		other["user_group_ratio"] = priceData.GroupRatioInfo.GroupSpecialRatio
 	}
 	appendRequestPath(nil, relayInfo, other)
+	appendDataConsentBillingInfo(relayInfo, other)
 	return other
 }
 

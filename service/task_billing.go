@@ -51,6 +51,12 @@ func LogTaskConsumption(c *gin.Context, info *relaycommon.RelayInfo) {
 		other["is_model_mapped"] = true
 		other["upstream_model_name"] = info.UpstreamModelName
 	}
+	dataConsentInfo := DataConsentStateForRelayInfo(info)
+	other["data_consent_enabled"] = dataConsentInfo.Enabled
+	other["data_consent_status"] = dataConsentInfo.Status
+	other["data_consent_authorized"] = dataConsentInfo.Authorized
+	other["data_consent_price_multiplier"] = dataConsentInfo.Multiplier
+	other["data_consent_agreement_version"] = dataConsentInfo.AgreementVersion
 	attachQuotaSaturation(c, info, other)
 	model.RecordConsumeLog(c, info.UserId, model.RecordConsumeLogParams{
 		ChannelId: info.ChannelId,
@@ -132,6 +138,7 @@ func taskBillingOther(task *model.Task) map[string]interface{} {
 				other[k] = v
 			}
 		}
+		appendTaskDataConsentBillingInfo(bc, other)
 	}
 	props := task.Properties
 	if props.UpstreamModelName != "" && props.UpstreamModelName != props.OriginModelName {
@@ -150,6 +157,21 @@ func taskBillingContextPriceData(bc *model.TaskBillingContext) *types.PriceData 
 		return nil
 	}
 	return priceData
+}
+
+func appendTaskDataConsentBillingInfo(billingContext *model.TaskBillingContext, other map[string]interface{}) {
+	if billingContext == nil || other == nil {
+		return
+	}
+	info := DataConsentStateForTaskBillingContext(billingContext)
+	other["data_consent_enabled"] = info.Enabled
+	other["data_consent_status"] = info.Status
+	other["data_consent_authorized"] = info.Authorized
+	other["data_consent_price_multiplier"] = info.Multiplier
+	other["data_consent_agreement_version"] = info.AgreementVersion
+	if info.UserVersion != "" {
+		other["data_consent_user_version"] = info.UserVersion
+	}
 }
 
 // taskModelName 从 BillingContext 或 Properties 中获取模型名称。
@@ -319,9 +341,16 @@ func RecalculateTaskQuotaByTokens(ctx context.Context, task *model.Task, totalTo
 		otherMultiplier = priceData.OtherRatioMultiplier()
 	}
 
-	// 计算实际应扣费额度: totalTokens * modelRatio * groupRatio * otherMultiplier（饱和转换，防止溢出成负数）
-	actualQuota, clamp := common.QuotaFromFloatChecked(float64(totalTokens) * modelRatio * finalGroupRatio * otherMultiplier)
+	dataConsentInfo := DataConsentStateForTaskBillingContext(task.PrivateData.BillingContext)
+	dataConsentMultiplier := 1.0
+	if dataConsentInfo.Enabled {
+		dataConsentMultiplier = dataConsentInfo.Multiplier
+	}
 
-	reason := fmt.Sprintf("token重算：tokens=%d, modelRatio=%.2f, groupRatio=%.2f, otherMultiplier=%.4f", totalTokens, modelRatio, finalGroupRatio, otherMultiplier)
+	// 计算实际应扣费额度: totalTokens * modelRatio * groupRatio * otherMultiplier * dataConsentMultiplier（饱和转换，防止溢出成负数）
+	actualQuota, clamp := common.QuotaFromFloatChecked(float64(totalTokens) * modelRatio * finalGroupRatio * otherMultiplier)
+	actualQuota = ApplyDataConsentMultiplierByInfo(actualQuota, dataConsentInfo)
+
+	reason := fmt.Sprintf("token重算：tokens=%d, modelRatio=%.2f, groupRatio=%.2f, otherMultiplier=%.4f, dataConsentMultiplier=%.4f", totalTokens, modelRatio, finalGroupRatio, otherMultiplier, dataConsentMultiplier)
 	RecalculateTaskQuota(ctx, task, actualQuota, reason, clamp)
 }
