@@ -70,6 +70,11 @@ func PrepareImageBillingForRequest(c *gin.Context, info *relaycommon.RelayInfo, 
 	if err != nil {
 		return types.NewErrorWithStatusCode(err, types.ErrorCodeModelPriceError, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 	}
+	// The reservation carries the same data consent adjustment that settlement applies.
+	quota = ApplyDataConsentMultiplier(info, quota)
+	if info.QuotaClamp != nil {
+		return types.NewErrorWithStatusCode(info.QuotaClamp, types.ErrorCodeModelPriceError, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+	}
 	info.PriceData.QuotaToPreConsume = quota
 	if quota == 0 && info.Billing == nil {
 		return nil

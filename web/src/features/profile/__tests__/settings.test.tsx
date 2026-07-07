@@ -16,7 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { ReactElement } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { api } from '@/lib/api'
@@ -57,6 +59,18 @@ const settings = {
 }
 
 afterEach(() => vi.restoreAllMocks())
+
+// NotificationTab reads the shared site status, so it needs a query client
+// that already holds a fresh snapshot instead of fetching one.
+function renderWithStatus(node: ReactElement) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  client.setQueryData(['status'], {})
+  return render(
+    <QueryClientProvider client={client}>{node}</QueryClientProvider>
+  )
+}
 
 /** The body a PUT sends over the wire: undefined fields are left out. */
 function sentBody(put: { mock: { calls: unknown[][] } }): unknown {
@@ -177,7 +191,7 @@ describe('user settings saves across profile and security', () => {
     const put = vi
       .spyOn(api, 'put')
       .mockResolvedValue({ data: { success: true } })
-    render(
+    renderWithStatus(
       <NotificationTab
         profile={{ ...profile, setting: JSON.stringify(settings) }}
         onUpdate={onUpdate}
@@ -209,7 +223,7 @@ describe('notifications a user receives', () => {
     quotaRemindEnabled = true
   ) {
     const onUpdate = vi.fn()
-    render(
+    renderWithStatus(
       <NotificationTab
         profile={{ ...profile, role, setting: JSON.stringify(setting) }}
         onUpdate={onUpdate}

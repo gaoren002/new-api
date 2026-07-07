@@ -52,7 +52,10 @@ func TestCalcViolationFeeQuotaSaturates(t *testing.T) {
 	common.QuotaPerUnit = 500_000
 	t.Cleanup(func() { common.QuotaPerUnit = oldQuotaPerUnit })
 
-	require.Equal(t, common.MaxQuota, calcViolationFeeQuota(1e20, 1))
+	quota, clamp := calcViolationFeeQuota(1e20, 1)
+	require.Equal(t, common.MaxQuota, quota)
+	require.NotNil(t, clamp)
+	require.Equal(t, common.QuotaClampOverflow, clamp.Kind)
 }
 
 func TestCalcOpenRouterCacheCreateTokensDoesNotWrap(t *testing.T) {

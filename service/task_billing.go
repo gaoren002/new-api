@@ -245,24 +245,31 @@ func taskBillingContextPriceData(bc *model.TaskBillingContext) *types.PriceData 
 		return nil
 	}
 	priceData := &types.PriceData{}
-	if !priceData.ReplaceOtherRatios(bc.OtherRatios) {
+	for key, ratio := range bc.OtherRatios {
+		// Consent is applied separately from the persisted provider ratios.
+		// Ignore historical snapshots that also stored it as an OtherRatio.
+		if !IsDataConsentAppliedRatio(key) {
+			priceData.AddOtherRatio(key, ratio)
+		}
+	}
+	if len(priceData.OtherRatios()) == 0 {
 		return nil
 	}
 	return priceData
 }
 
-func appendTaskDataConsentBillingInfo(billingContext *model.TaskBillingContext, other map[string]interface{}) {
+func appendTaskDataConsentBillingInfo(billingContext *model.TaskBillingContext, other *model.LogOther) {
 	if billingContext == nil || other == nil {
 		return
 	}
 	info := DataConsentStateForTaskBillingContext(billingContext)
-	other["data_consent_enabled"] = info.Enabled
-	other["data_consent_status"] = info.Status
-	other["data_consent_authorized"] = info.Authorized
-	other["data_consent_price_multiplier"] = info.Multiplier
-	other["data_consent_agreement_version"] = info.AgreementVersion
+	other.SetPublic("data_consent_enabled", info.Enabled)
+	other.SetPublic("data_consent_status", info.Status)
+	other.SetPublic("data_consent_authorized", info.Authorized)
+	other.SetPublic("data_consent_price_multiplier", info.Multiplier)
+	other.SetPublic("data_consent_agreement_version", info.AgreementVersion)
 	if info.UserVersion != "" {
-		other["data_consent_user_version"] = info.UserVersion
+		other.SetPublic("data_consent_user_version", info.UserVersion)
 	}
 }
 
@@ -378,6 +385,9 @@ func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int
 	other.SetPublic("actual_quota", actualQuota)
 	for _, clamp := range clamps {
 		attachQuotaSaturationToOther(other, clamp)
+		if clamp != nil {
+			logger.LogWarn(ctx, common.LogText("task quota saturation on settlement: task=%s user=%d model=%s %v", task.TaskID, task.UserId, taskModelName(task), clamp))
+		}
 	}
 	model.RecordTaskBillingLog(model.RecordTaskBillingLogParams{
 		UserId:    task.UserId,
@@ -440,7 +450,7 @@ func RecalculateTaskQuotaByTokens(ctx context.Context, task *model.Task, totalTo
 
 	// 计算实际应扣费额度: totalTokens * modelRatio * groupRatio * otherMultiplier * dataConsentMultiplier（饱和转换，防止溢出成负数）
 	actualQuota, clamp := common.QuotaFromFloatChecked(float64(totalTokens) * modelRatio * finalGroupRatio * otherMultiplier)
-	actualQuota = ApplyDataConsentMultiplierByInfo(actualQuota, DataConsentStateForTaskBillingContext(task.PrivateData.BillingContext))
+	actualQuota, consentClamp := ApplyDataConsentMultiplierByInfoChecked(actualQuota, DataConsentStateForTaskBillingContext(task.PrivateData.BillingContext))
 
 	reason := common.NewMessage("Recalculated from tokens: tokens {{tokens}}, model ratio {{model_ratio}}, group ratio {{group_ratio}}, other multiplier {{other_multiplier}}", map[string]any{
 		"tokens":           totalTokens,
@@ -448,7 +458,7 @@ func RecalculateTaskQuotaByTokens(ctx context.Context, task *model.Task, totalTo
 		"group_ratio":      fmt.Sprintf("%.2f", finalGroupRatio),
 		"other_multiplier": fmt.Sprintf("%.4f", otherMultiplier),
 	})
-	RecalculateTaskQuota(ctx, task, actualQuota, reason, clamp)
+	RecalculateTaskQuota(ctx, task, actualQuota, reason, clamp, consentClamp)
 	return true
 }
 

@@ -50,6 +50,13 @@ function Fixture() {
               trust_quota_usd: 10,
               pre_consume_multiplier: 1,
             },
+            data_consent: {
+              enabled: false,
+              accepted_multiplier: 0.95,
+              declined_multiplier: 1,
+              agreement_version: 'v1',
+              agreement_content: '',
+            },
           }}
         />
       </SettingsPageProvider>

@@ -161,6 +161,9 @@ export type AuthSettings = {
   PasswordRegisterEnabled: boolean
   EmailVerificationEnabled: boolean
   RegisterEnabled: boolean
+  InviteCodeRegisterEnabled: boolean
+  InviteCodeExpireMinutes: number
+  InviteBotSecret: string
   EmailDomainRestrictionEnabled: boolean
   EmailAliasRestrictionEnabled: boolean
   EmailDomainWhitelist: string
@@ -272,6 +275,11 @@ export type ModelSettings = {
 
 export type BillingSettings = {
   QuotaForNewUser: number
+  'data_consent.enabled': boolean
+  'data_consent.accepted_multiplier': number
+  'data_consent.declined_multiplier': number
+  'data_consent.agreement_version': string
+  'data_consent.agreement_content': string
   QuotaForInviter: number
   QuotaForInvitee: number
   TopUpLink: string
@@ -352,9 +360,6 @@ export type BillingSettings = {
   // section (saved via /api/option/waffo-pancake/save).
   WaffoPancakeStoreID: string
   WaffoPancakeProductID: string
-  'checkin_setting.enabled': boolean
-  'checkin_setting.min_quota': number
-  'checkin_setting.max_quota': number
 }
 
 export type OperationsSettings = {
@@ -367,6 +372,17 @@ export type OperationsSettings = {
   ResendApiKey: string
   ResendKeyConfigured: boolean
   ResendFrom: string
+  'checkin_setting.enabled': boolean
+  'checkin_setting.min_quota': number
+  'checkin_setting.max_quota': number
+  'checkin_setting.tiered': boolean
+  'checkin_setting.tiers': string
+  'checkin_setting.fallback_mode': 'legacy' | 'none'
+  QuotaPerUnit: number
+  USDExchangeRate: number
+  'general_setting.quota_display_type': string
+  'general_setting.custom_currency_symbol': string
+  'general_setting.custom_currency_exchange_rate': number
   SMTPServer: string
   SMTPPort: string
   SMTPAccount: string

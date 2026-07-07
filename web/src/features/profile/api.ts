@@ -27,6 +27,7 @@ import type {
   UserProfile,
   UpdateUserRequest,
   UpdateUserSettingsRequest,
+  UpdateDataConsentRequest,
   CheckinStatusResponse,
   CheckinResponse,
   AccountSecurityResult,
@@ -85,6 +86,22 @@ export async function updateUserSettings(
   }
   const settings = normalizeUserSettings(profile.data.setting)
   const res = await api.put('/api/user/setting', { ...settings, ...data })
+  return res.data
+}
+
+/**
+ * Update data authorization agreement status
+ */
+export async function updateDataConsent(
+  data: UpdateDataConsentRequest
+): Promise<
+  ApiResponse<{
+    status: string
+    version: string
+    updated_at: number
+  }>
+> {
+  const res = await api.put('/api/user/data_consent', data)
   return res.data
 }
 

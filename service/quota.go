@@ -205,7 +205,9 @@ func PostWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, mod
 	if tieredOk {
 		quota = tieredQuota
 	}
-	quota = ApplyDataConsentMultiplier(relayInfo, quota)
+	if !tieredOk || tieredResult != nil {
+		quota = ApplyDataConsentMultiplier(relayInfo, quota)
+	}
 
 	totalTokens := usage.TotalTokens
 	var logContent []*common.Message
@@ -345,7 +347,9 @@ func PostAudioConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, u
 	if tieredOk {
 		quota = tieredQuota
 	}
-	quota = ApplyDataConsentMultiplier(relayInfo, quota)
+	if !tieredOk || tieredResult != nil {
+		quota = ApplyDataConsentMultiplier(relayInfo, quota)
+	}
 
 	totalTokens := usage.TotalTokens
 	var logContent []*common.Message

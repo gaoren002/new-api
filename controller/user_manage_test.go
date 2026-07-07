@@ -20,6 +20,7 @@ import (
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/service/authz"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
 
@@ -79,6 +80,46 @@ func setupManageUserTestDB(t *testing.T) *gorm.DB {
 	require.NoError(t, db.Raw(versionQuery).Scan(&version).Error)
 	t.Logf("database: %s %s, separate log database: %v", dialect, version, logDB != db)
 	return db
+}
+
+func TestDataConsentUpdateRefreshesCacheWithoutOverwritingQuota(t *testing.T) {
+	db := setupManageUserTestDB(t)
+	server := miniredis.RunT(t)
+	oldRDB := common.RDB
+	oldConsent := *operation_setting.GetDataConsentSetting()
+	common.RDB = redis.NewClient(&redis.Options{Addr: server.Addr()})
+	common.RedisEnabled = true
+	*operation_setting.GetDataConsentSetting() = operation_setting.DataConsentSetting{Enabled: true, AgreementVersion: "test-v2"}
+	t.Cleanup(func() {
+		_ = common.RDB.Close()
+		common.RDB = oldRDB
+		*operation_setting.GetDataConsentSetting() = oldConsent
+	})
+	user := model.User{
+		Username: "consent-cache-user", Role: common.RoleCommonUser,
+		Status: common.UserStatusEnabled, Group: "default", AuthVersion: 1, Quota: 1000,
+	}
+	user.SetSetting(dto.UserSetting{Language: "zh", BillingPreference: "wallet_only"})
+	require.NoError(t, db.Create(&user).Error)
+	_, err := model.GetUserCache(user.Id)
+	require.NoError(t, err)
+	// The live quota may be newer than the persisted user snapshot.
+	require.NoError(t, common.RDB.HSet(t.Context(), fmt.Sprintf("user:%d", user.Id), "Quota", 777).Err())
+	for _, status := range []string{dto.DataConsentStatusAccepted, dto.DataConsentStatusDeclined} {
+		recorder := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(recorder)
+		c.Set("id", user.Id)
+		c.Request = httptest.NewRequest(http.MethodPut, "/api/user/data_consent", strings.NewReader(fmt.Sprintf(`{"status":%q}`, status)))
+		UpdateUserDataConsent(c)
+		require.Contains(t, recorder.Body.String(), `"success":true`)
+		cached, err := model.GetUserCache(user.Id)
+		require.NoError(t, err)
+		assert.Equal(t, 777, cached.Quota)
+		assert.Equal(t, status, cached.GetSetting().DataConsentStatus)
+		assert.Equal(t, "test-v2", cached.GetSetting().DataConsentVersion)
+		assert.Equal(t, "zh", cached.GetSetting().Language)
+		assert.Equal(t, "wallet_only", cached.GetSetting().BillingPreference)
+	}
 }
 
 func performManageUserRequest(t *testing.T, body string) *httptest.ResponseRecorder {
