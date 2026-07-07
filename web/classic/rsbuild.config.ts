@@ -47,6 +47,7 @@ export default defineConfig(({ envMode }) => {
           semiUiDir,
           'dist/css/semi.css',
         ),
+        'date-fns': path.resolve(semiUiDir, 'node_modules/date-fns'),
       },
     },
     html: {
