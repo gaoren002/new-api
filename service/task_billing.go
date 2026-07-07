@@ -77,6 +77,7 @@ func LogTaskConsumption(c *gin.Context, info *relaycommon.RelayInfo, task *model
 		setTaskImageCount(other, info.PriceData.OtherRatios()["image_count"])
 	}
 	appendTaskLogInfo(task, other)
+	appendDataConsentBillingInfo(info, other)
 	attachQuotaSaturation(c, info, other)
 	model.RecordConsumeLog(c, info.UserId, model.RecordConsumeLogParams{
 		ChannelId: info.ChannelId,
@@ -173,6 +174,7 @@ func taskBillingOther(task *model.Task) *model.LogOther {
 		} else if priceData := taskBillingContextPriceData(bc); priceData != nil {
 			setTaskImageCount(other, priceData.OtherRatios()["image_count"])
 		}
+		appendTaskDataConsentBillingInfo(bc, other)
 	}
 	props := task.Properties
 	if props.UpstreamModelName != "" && props.UpstreamModelName != props.OriginModelName {
@@ -247,6 +249,21 @@ func taskBillingContextPriceData(bc *model.TaskBillingContext) *types.PriceData 
 		return nil
 	}
 	return priceData
+}
+
+func appendTaskDataConsentBillingInfo(billingContext *model.TaskBillingContext, other map[string]interface{}) {
+	if billingContext == nil || other == nil {
+		return
+	}
+	info := DataConsentStateForTaskBillingContext(billingContext)
+	other["data_consent_enabled"] = info.Enabled
+	other["data_consent_status"] = info.Status
+	other["data_consent_authorized"] = info.Authorized
+	other["data_consent_price_multiplier"] = info.Multiplier
+	other["data_consent_agreement_version"] = info.AgreementVersion
+	if info.UserVersion != "" {
+		other["data_consent_user_version"] = info.UserVersion
+	}
 }
 
 // taskModelName 从 BillingContext 或 Properties 中获取模型名称。
@@ -421,8 +438,9 @@ func RecalculateTaskQuotaByTokens(ctx context.Context, task *model.Task, totalTo
 		otherMultiplier = priceData.OtherRatioMultiplier()
 	}
 
-	// 计算实际应扣费额度: totalTokens * modelRatio * groupRatio * otherMultiplier（饱和转换，防止溢出成负数）
+	// 计算实际应扣费额度: totalTokens * modelRatio * groupRatio * otherMultiplier * dataConsentMultiplier（饱和转换，防止溢出成负数）
 	actualQuota, clamp := common.QuotaFromFloatChecked(float64(totalTokens) * modelRatio * finalGroupRatio * otherMultiplier)
+	actualQuota = ApplyDataConsentMultiplierByInfo(actualQuota, DataConsentStateForTaskBillingContext(task.PrivateData.BillingContext))
 
 	reason := common.NewMessage("Recalculated from tokens: tokens {{tokens}}, model ratio {{model_ratio}}, group ratio {{group_ratio}}, other multiplier {{other_multiplier}}", map[string]any{
 		"tokens":           totalTokens,

@@ -710,6 +710,7 @@ func settleTaskBillingOnComplete(ctx context.Context, adaptor TaskPollingAdaptor
 	}
 	// 优先让 adaptor 决定最终额度。
 	if actualQuota := adaptor.AdjustBillingOnComplete(task, taskResult); actualQuota > 0 {
+		actualQuota = ApplyDataConsentMultiplierByInfo(actualQuota, DataConsentStateForTaskBillingContext(task.PrivateData.BillingContext))
 		RecalculateTaskQuota(ctx, task, actualQuota, common.NewMessage("Adjusted by the channel adaptor"))
 		return true
 	}
