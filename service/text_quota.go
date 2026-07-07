@@ -201,18 +201,28 @@ func noteQuotaClamp(relayInfo *relaycommon.RelayInfo, clamp *common.QuotaClamp) 
 }
 
 func composeTieredTextQuota(relayInfo *relaycommon.RelayInfo, summary textQuotaSummary, tieredQuota int, tieredResult *billingexpr.TieredResult) int {
+	if tieredResult == nil {
+		// Expression failure returns the actual (already consent-adjusted)
+		// reservation. Only newly incurred tool fees still need adjustment.
+		surcharge := summary.ToolCallSurchargeQuota
+		consent := DataConsentStateForRelayInfo(relayInfo)
+		if consent.Enabled && consent.Multiplier > 0 && !math.IsNaN(consent.Multiplier) && !math.IsInf(consent.Multiplier, 0) {
+			surcharge = surcharge.Mul(decimal.NewFromFloat(consent.Multiplier))
+		}
+		total, clamp := common.QuotaFromDecimalChecked(decimal.NewFromInt(int64(tieredQuota)).Add(surcharge))
+		noteQuotaClamp(relayInfo, clamp)
+		return total
+	}
 	if summary.ToolCallSurchargeQuota.IsZero() {
-		return tieredQuota
+		return ApplyDataConsentMultiplier(relayInfo, tieredQuota)
 	}
 
-	if tieredResult != nil {
-		if snap := relayInfo.TieredBillingSnapshot; snap != nil {
-			quota, clamp := common.QuotaFromDecimalChecked(decimal.NewFromFloat(tieredResult.ActualQuotaBeforeGroup).
-				Mul(decimal.NewFromFloat(snap.GroupRatio)).
-				Add(summary.ToolCallSurchargeQuota))
-			noteQuotaClamp(relayInfo, clamp)
-			return quota
-		}
+	if snap := relayInfo.TieredBillingSnapshot; snap != nil {
+		quota, clamp := common.QuotaFromDecimalChecked(decimal.NewFromFloat(tieredResult.ActualQuotaBeforeGroup).
+			Mul(decimal.NewFromFloat(snap.GroupRatio)).
+			Add(summary.ToolCallSurchargeQuota))
+		noteQuotaClamp(relayInfo, clamp)
+		return ApplyDataConsentMultiplier(relayInfo, quota)
 	}
 
 	// Saturate the final sum, not just the surcharge: tieredQuota can be near
@@ -222,7 +232,7 @@ func composeTieredTextQuota(relayInfo *relaycommon.RelayInfo, summary textQuotaS
 		decimal.NewFromInt(int64(tieredQuota)).Add(summary.ToolCallSurchargeQuota),
 	)
 	noteQuotaClamp(relayInfo, clamp)
-	return total
+	return ApplyDataConsentMultiplier(relayInfo, total)
 }
 
 // calculateTextQuotaSummary expects a usage already remapped by
@@ -421,7 +431,9 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 			summary.Quota = composeTieredTextQuota(relayInfo, summary, tieredQuota, tieredRes)
 		}
 	}
-	summary.Quota = ApplyDataConsentMultiplier(relayInfo, summary.Quota)
+	if !tieredBillingApplied {
+		summary.Quota = ApplyDataConsentMultiplier(relayInfo, summary.Quota)
+	}
 
 	for _, item := range summary.ToolSurchargeItems {
 		q := decimal.NewFromFloat(item.Price).

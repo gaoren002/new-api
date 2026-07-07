@@ -29,6 +29,7 @@ const STATUS_RELATED_KEYS = new Set([
   'SidebarModulesAdmin',
   'Notice',
   'LogConsumeEnabled',
+  'InviteCodeRegisterEnabled',
   'QuotaPerUnit',
   'USDExchangeRate',
   'DisplayInCurrencyEnabled',
@@ -37,6 +38,11 @@ const STATUS_RELATED_KEYS = new Set([
   'general_setting.custom_currency_symbol',
   'general_setting.custom_currency_exchange_rate',
   'oidc.display_name',
+  'data_consent.enabled',
+  'data_consent.accepted_multiplier',
+  'data_consent.declined_multiplier',
+  'data_consent.agreement_version',
+  'data_consent.agreement_content',
 ])
 
 export function useUpdateOption() {

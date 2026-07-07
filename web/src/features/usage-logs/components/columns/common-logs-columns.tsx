@@ -17,11 +17,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import type { ColumnDef } from '@tanstack/react-table'
-import { GitBranch, Sparkles, KeyRound } from 'lucide-react'
+import { Database, GitBranch, Sparkles, KeyRound } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { GroupBadge } from '@/components/group-badge'
+import { DataTableColumnHeader } from '@/components/data-table'
 import { StatusBadge, type StatusBadgeProps } from '@/components/status-badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -94,6 +95,36 @@ function getGroupRatio(other: LogOtherData | null): number | null {
   return null
 }
 
+function getDataConsentLogConfig(other: LogOtherData | null): {
+  label: string
+  variant: StatusBadgeProps['variant']
+  multiplier?: number
+} {
+  if (!other?.data_consent_enabled) {
+    return { label: 'Disabled', variant: 'neutral' }
+  }
+
+  switch (other.data_consent_status) {
+    case 'accepted':
+      return {
+        label: 'Accepted',
+        variant: 'success',
+        multiplier: other.data_consent_price_multiplier,
+      }
+    case 'declined':
+      return {
+        label: 'Rejected',
+        variant: 'danger',
+        multiplier: other.data_consent_price_multiplier,
+      }
+    default:
+      return {
+        label: 'Unsigned',
+        variant: 'warning',
+        multiplier: other.data_consent_price_multiplier,
+    }
+  }
+}
 function buildDetailSegments(
   log: UsageLog,
   other: LogOtherData | null,
@@ -733,6 +764,38 @@ export function useCommonLogsColumns(
           />
         )
       },
+    },
+
+    {
+      id: 'data_consent',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t('Data Auth')} />
+      ),
+      cell: ({ row }) => {
+        const log = row.original
+        if (!isDisplayableLogType(log.type)) return null
+
+        const other = parseLogOther(log.other)
+        const config = getDataConsentLogConfig(other)
+
+        return (
+          <div className='flex flex-col gap-0.5'>
+            <StatusBadge
+              label={t(config.label)}
+              icon={Database}
+              variant={config.variant}
+              size='sm'
+              copyable={false}
+            />
+            {config.multiplier != null && config.multiplier !== 1 && (
+              <span className='text-muted-foreground/60 font-mono text-[11px]'>
+                {formatRatioCompact(config.multiplier)}x
+              </span>
+            )}
+          </div>
+        )
+      },
+      meta: { label: t('Data Auth'), mobileHidden: true },
     },
 
     {

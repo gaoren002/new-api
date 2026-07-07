@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { CheckinSettingsSection } from '../general/checkin-settings-section'
 import { SystemBehaviorSection } from '../general/system-behavior-section'
 import { EmailSettingsSection } from '../integrations/email-settings-section'
 import { MonitoringSettingsSection } from '../integrations/monitoring-settings-section'
@@ -55,6 +56,32 @@ const OPERATIONS_SECTIONS = [
             settings['perf_metrics_setting.bucket_time'] ?? 'hour',
           'perf_metrics_setting.retention_days':
             settings['perf_metrics_setting.retention_days'] ?? 0,
+        }}
+      />
+    ),
+  },
+  {
+    id: 'checkin',
+    titleKey: 'Check-in Settings',
+    descriptionKey: 'Configure daily check-in rewards for users',
+    build: (settings: OperationsSettings) => (
+      <CheckinSettingsSection
+        defaultValues={{
+          enabled: settings['checkin_setting.enabled'],
+          minQuota: settings['checkin_setting.min_quota'],
+          maxQuota: settings['checkin_setting.max_quota'],
+          tiered: settings['checkin_setting.tiered'] ?? false,
+          tiers: settings['checkin_setting.tiers'] ?? '[]',
+          fallbackMode:
+            settings['checkin_setting.fallback_mode'] ?? 'legacy',
+          quotaPerUnit: settings.QuotaPerUnit ?? 500000,
+          usdExchangeRate: settings.USDExchangeRate ?? 7,
+          quotaDisplayType:
+            settings['general_setting.quota_display_type'] ?? 'USD',
+          customCurrencySymbol:
+            settings['general_setting.custom_currency_symbol'] ?? '¤',
+          customCurrencyExchangeRate:
+            settings['general_setting.custom_currency_exchange_rate'] ?? 1,
         }}
       />
     ),

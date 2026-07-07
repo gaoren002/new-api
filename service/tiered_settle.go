@@ -146,10 +146,14 @@ func PrepareTieredBillingForSelectedGroup(c *gin.Context, relayInfo *relaycommon
 	// initial group was free so downstream state stays consistent.
 	relayInfo.PriceData.FreeModel = false
 
-	if relayInfo.Billing == nil {
-		return PreConsumeBilling(c, snap.EstimatedQuotaAfterGroup, relayInfo)
+	estimatedQuota := ApplyDataConsentMultiplier(relayInfo, snap.EstimatedQuotaAfterGroup)
+	if relayInfo.QuotaClamp != nil {
+		return types.NewErrorWithStatusCode(relayInfo.QuotaClamp, types.ErrorCodeModelPriceError, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 	}
-	if err := relayInfo.Billing.Reserve(snap.EstimatedQuotaAfterGroup); err != nil {
+	if relayInfo.Billing == nil {
+		return PreConsumeBilling(c, estimatedQuota, relayInfo)
+	}
+	if err := relayInfo.Billing.Reserve(estimatedQuota); err != nil {
 		return types.NewError(err, types.ErrorCodeUpdateDataError, types.ErrOptionWithSkipRetry())
 	}
 	relayInfo.FinalPreConsumedQuota = relayInfo.Billing.GetPreConsumedQuota()
@@ -175,7 +179,7 @@ func TryTieredSettle(relayInfo *relaycommon.RelayInfo, params billingexpr.TokenP
 	if err != nil {
 		quota = relayInfo.FinalPreConsumedQuota
 		if quota <= 0 {
-			quota = snap.EstimatedQuotaAfterGroup
+			quota = ApplyDataConsentMultiplier(relayInfo, snap.EstimatedQuotaAfterGroup)
 		}
 		return true, quota, nil
 	}

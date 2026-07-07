@@ -15,6 +15,8 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/pkg/billingexpr"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/relaykit/dto"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
@@ -428,13 +430,14 @@ func TestTaskBillingOtherSeparatesPluginAndRootDiagnostics(t *testing.T) {
 func TestTaskBillingContextPriceDataFiltersMultiplier(t *testing.T) {
 	priceData := taskBillingContextPriceData(&model.TaskBillingContext{
 		OtherRatios: map[string]float64{
-			"seconds":  2,
-			"size":     3,
-			"identity": 1,
-			"zero":     0,
-			"negative": -1,
-			"nan":      math.NaN(),
-			"inf":      math.Inf(1),
+			dataConsentAppliedRatioKey: 0.5,
+			"seconds":                  2,
+			"size":                     3,
+			"identity":                 1,
+			"zero":                     0,
+			"negative":                 -1,
+			"nan":                      math.NaN(),
+			"inf":                      math.Inf(1),
 		},
 	})
 
@@ -445,6 +448,186 @@ func TestTaskBillingContextPriceDataFiltersMultiplier(t *testing.T) {
 		"size":     3,
 		"identity": 1,
 	}, priceData.OtherRatios())
+}
+
+func configureDataConsentBillingTest(t *testing.T) dto.UserSetting {
+	t.Helper()
+	settings := operation_setting.GetDataConsentSetting()
+	previous := *settings
+	settings.Enabled = true
+	settings.AgreementVersion = "billing-test-v1"
+	settings.AcceptedMultiplier = 0.5
+	settings.DeclinedMultiplier = 1.5
+	t.Cleanup(func() { *settings = previous })
+	return dto.UserSetting{DataConsentStatus: dto.DataConsentStatusAccepted, DataConsentVersion: settings.AgreementVersion}
+}
+
+func TestDataConsentQuotaSafetyAndPreConsumeAudit(t *testing.T) {
+	userSetting := configureDataConsentBillingTest(t)
+	for _, tc := range []struct {
+		name       string
+		quota      int
+		multiplier float64
+		want       int
+		clamped    bool
+	}{
+		{"discount", 101, 0.5, 51, false},
+		{"minimum nonzero charge", 1, 0.01, 1, false},
+		{"zero remains free", 0, 2, 0, false},
+		{"overflow saturates", common.MaxQuota, 2, common.MaxQuota, true},
+		{"invalid negative multiplier", 100, -2, 100, false},
+		{"invalid nan multiplier", 100, math.NaN(), 100, false},
+		{"invalid infinite multiplier", 100, math.Inf(1), 100, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			quota, clamp := ApplyDataConsentMultiplierByInfoChecked(tc.quota, DataConsentBillingInfo{Enabled: true, Multiplier: tc.multiplier})
+			assert.Equal(t, tc.want, quota)
+			assert.Equal(t, tc.clamped, clamp != nil)
+		})
+	}
+	operation_setting.GetDataConsentSetting().AcceptedMultiplier = 2
+	info := &relaycommon.RelayInfo{UserSetting: userSetting, PriceData: types.PriceData{QuotaToPreConsume: common.MaxQuota}}
+	ApplyDataConsentMultiplierToPriceData(info)
+	require.NotNil(t, info.QuotaClamp)
+	ctx, _ := gin.CreateTestContext(nil)
+	require.NotNil(t, PreConsumeBilling(ctx, info.PriceData.QuotaToPreConsume, info))
+	require.Nil(t, info.Billing, "saturated consent adjustment must fail before any wallet mutation")
+	other := model.NewLogOther()
+	attachQuotaSaturation(ctx, info, other)
+	assert.NotContains(t, other.Snapshot(), "quota_saturation")
+	assert.Contains(t, other.Snapshot()["admin_info"], "quota_saturation")
+	assert.Equal(t, 100, ApplyDataConsentMultiplierByInfo(100, DataConsentStateForTaskBillingContext(nil)), "historical tasks must not pick up current consent pricing")
+	operation_setting.GetDataConsentSetting().AcceptedMultiplier = 0.5
+	assert.Equal(t, 201, composeTieredTextQuota(&relaycommon.RelayInfo{UserSetting: userSetting}, textQuotaSummary{ToolCallSurchargeQuota: decimal.RequireFromString("2.6")}, 200, nil), "fallback preserves the paid reservation and rounds only the adjusted new tool fee")
+}
+
+func TestDataConsentSynchronousSettlementAppliesOnce(t *testing.T) {
+	userSetting := configureDataConsentBillingTest(t)
+	previousQuotaPerUnit := common.QuotaPerUnit
+	common.QuotaPerUnit = 1_000_000
+	t.Cleanup(func() { common.QuotaPerUnit = previousQuotaPerUnit })
+	operation_setting.SetToolPriceForTest(dto.BuildInToolWebSearch, 0.1)
+	t.Cleanup(func() { operation_setting.DeleteToolPriceForTest(dto.BuildInToolWebSearch) })
+	for _, tc := range []struct {
+		name       string
+		format     string
+		tiered     bool
+		brokenExpr bool
+		tool       bool
+		want       int
+	}{
+		{"legacy text and tool", "text", false, false, true, 100},
+		{"tiered text and tool", "text", true, false, true, 100},
+		{"tiered text fallback and tool", "text", true, true, true, 250},
+		{"legacy audio", "audio", false, false, false, 50},
+		{"tiered audio", "audio", true, false, false, 50},
+		{"tiered audio fallback", "audio", true, true, false, 200},
+		{"legacy realtime", "realtime", false, false, false, 50},
+		{"tiered realtime", "realtime", true, false, false, 50},
+		{"tiered realtime fallback", "realtime", true, true, false, 200},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			truncate(t)
+			seedUser(t, 870, 1000)
+			seedChannel(t, 870)
+			ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+			ctx.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+			if tc.tool {
+				ctx.Set("claude_web_search_requests", 1)
+			}
+			info := &relaycommon.RelayInfo{
+				UserId: 870, ChannelMeta: &relaycommon.ChannelMeta{ChannelId: 870}, IsPlayground: true,
+				UserSetting: userSetting, OriginModelName: "consent-billing-test", StartTime: time.Now(),
+				FinalPreConsumedQuota: 200,
+				PriceData:             types.PriceData{ModelRatio: 1, CompletionRatio: 1, GroupRatioInfo: types.GroupRatioInfo{GroupRatio: 1}},
+			}
+			info.Billing = &BillingSession{relayInfo: info, funding: &WalletFunding{userId: 870, consumed: 200}, preConsumedQuota: 200}
+			if tc.tiered {
+				expression := `tier("base", p)`
+				if tc.brokenExpr {
+					expression = `tier("broken",`
+				}
+				info.TieredBillingSnapshot = &billingexpr.BillingSnapshot{
+					BillingMode: "tiered_expr", ExprString: expression, ExprHash: billingexpr.ExprHashString(expression),
+					GroupRatio: 1, QuotaPerUnit: common.QuotaPerUnit, EstimatedQuotaAfterGroup: 400,
+				}
+			}
+			usage := &dto.Usage{PromptTokens: 100, TotalTokens: 100, PromptTokensDetails: dto.InputTokenDetails{TextTokens: 100}}
+			switch tc.format {
+			case "text":
+				PostTextConsumeQuota(ctx, info, usage, nil)
+			case "audio":
+				PostAudioConsumeQuota(ctx, info, usage, "")
+			case "realtime":
+				PostWssConsumeQuota(ctx, info, info.OriginModelName, &dto.RealtimeUsage{InputTokens: 100, TotalTokens: 100, InputTokenDetails: dto.InputTokenDetails{TextTokens: 100}}, "")
+			}
+			assert.Equal(t, 1000+200-tc.want, getUserQuota(t, 870))
+			log := getLastLog(t)
+			require.NotNil(t, log)
+			assert.Equal(t, tc.want, log.Quota)
+			var other map[string]any
+			require.NoError(t, common.UnmarshalJsonStr(log.Other, &other))
+			assert.Equal(t, 0.5, other["data_consent_price_multiplier"])
+		})
+	}
+}
+
+func TestDataConsentTaskSettlementUsesFrozenMultiplierOnce(t *testing.T) {
+	userSetting := configureDataConsentBillingTest(t)
+	previousRatios := ratio_setting.ModelRatio2JSONString()
+	require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(`{"test-model":1}`))
+	t.Cleanup(func() { require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(previousRatios)) })
+	for _, tc := range []struct {
+		name string
+		want int
+	}{
+		{"tiered", 150}, {"adaptor", 150}, {"tokens", 150}, {"per-call", 200}, {"tiered-error", 200},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			truncate(t)
+			seedUser(t, 871, 1000)
+			seedChannel(t, 871)
+			task := makeTask(871, 871, 200, 0, BillingSourceWallet, 0)
+			task.Status = model.TaskStatusSuccess
+			operation_setting.GetDataConsentSetting().Enabled = true
+			ApplyTaskDataConsentBillingContext(task.PrivateData.BillingContext, &relaycommon.RelayInfo{UserSetting: userSetting})
+			// A policy change after submission must not reprice an in-flight task.
+			operation_setting.GetDataConsentSetting().Enabled = false
+			adaptor := &mockAdaptor{}
+			result := &relaycommon.TaskInfo{Status: model.TaskStatusSuccess}
+			switch tc.name {
+			case "tiered", "tiered-error":
+				expression := `tier("base", u("seconds") * 100)`
+				if tc.name == "tiered-error" {
+					expression = `tier("broken",`
+				}
+				task.PrivateData.BillingContext.TieredSnapshot = &billingexpr.BillingSnapshot{
+					ExprString: expression, ExprHash: billingexpr.ExprHashString(expression), GroupRatio: 1,
+					QuotaPerUnit: 1, TaskUsageBilling: true, UsageFacts: map[string]any{"seconds": float64(2)},
+				}
+				result.UsageFacts = map[string]any{"seconds": float64(3)}
+			case "adaptor":
+				adaptor.adjustReturn = 300
+			case "tokens":
+				result.TotalTokens = 150
+				task.PrivateData.BillingContext.OtherRatios = map[string]float64{"duration": 2, dataConsentAppliedRatioKey: 0.5}
+			case "per-call":
+				task.PrivateData.BillingContext.PerCallBilling = true
+				adaptor.adjustReturn = 300
+			}
+			require.NoError(t, model.DB.Create(task).Error)
+			settleTaskBillingOnComplete(context.Background(), adaptor, task, result)
+			assert.Equal(t, tc.want, task.Quota)
+			assert.Equal(t, 1000+200-tc.want, getUserQuota(t, 871))
+			if tc.want != 200 {
+				log := getLastLog(t)
+				require.NotNil(t, log)
+				var other map[string]any
+				require.NoError(t, common.UnmarshalJsonStr(log.Other, &other))
+				assert.Equal(t, 0.5, other["data_consent_price_multiplier"])
+			}
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------

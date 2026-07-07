@@ -365,6 +365,34 @@ func TestPrepareTieredBillingForSelectedGroupUpdatesReservation(t *testing.T) {
 	assert.Equal(t, 100_000, relayInfo.TieredBillingSnapshot.EstimatedQuotaAfterGroup)
 }
 
+func TestPrepareTieredBillingConsentAdjustmentSurvivesGroupRetry(t *testing.T) {
+	userSetting := configureDataConsentBillingTest(t)
+	billing := &recordingBillingSettler{preConsumedQuota: 25_000}
+	info := &relaycommon.RelayInfo{
+		UserSetting: userSetting, Billing: billing, FinalPreConsumedQuota: 25_000,
+		TieredBillingSnapshot: &billingexpr.BillingSnapshot{
+			BillingMode: "tiered_expr", GroupRatio: 0.1,
+			EstimatedQuotaBeforeGroup: 500_000, EstimatedQuotaAfterGroup: 50_000,
+		},
+		PriceData: types.PriceData{GroupRatioInfo: types.GroupRatioInfo{GroupRatio: 0.2}},
+	}
+	for range 2 {
+		require.Nil(t, PrepareTieredBillingForSelectedGroup(nil, info))
+	}
+	assert.Equal(t, []int{50_000, 50_000}, billing.reserveTargets)
+	assert.Equal(t, 50_000, info.FinalPreConsumedQuota)
+	assert.Equal(t, 100_000, info.TieredBillingSnapshot.EstimatedQuotaAfterGroup, "expression snapshot remains unadjusted")
+	info.TieredBillingSnapshot.ExprString = `tier("broken",`
+	info.TieredBillingSnapshot.ExprHash = billingexpr.ExprHashString(info.TieredBillingSnapshot.ExprString)
+	ok, quota, result := TryTieredSettle(info, billingexpr.TokenParams{P: 100})
+	require.True(t, ok)
+	require.Nil(t, result)
+	assert.Equal(t, 50_000, quota, "fallback returns the adjusted reservation unchanged")
+	info.FinalPreConsumedQuota = 0
+	_, quota, _ = TryTieredSettle(info, billingexpr.TokenParams{P: 100})
+	assert.Equal(t, 50_000, quota, "trusted/free initial reservation falls back to an adjusted estimate")
+}
+
 func TestPrepareTieredBillingForSelectedGroupStartsBillingAfterFreeGroup(t *testing.T) {
 	truncate(t)
 	gin.SetMode(gin.TestMode)

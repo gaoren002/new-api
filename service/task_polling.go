@@ -686,7 +686,8 @@ func settleTaskBillingOnComplete(ctx context.Context, adaptor TaskPollingAdaptor
 		}
 		bc.TieredSnapshot.UsageFacts = usageFacts
 		bc.TieredSnapshot.EstimatedTier = result.MatchedTier
-		RecalculateTaskQuota(ctx, task, result.ActualQuotaAfterGroup, "任务用量表达式结算", result.Clamp)
+		actualQuota, consentClamp := ApplyDataConsentMultiplierByInfoChecked(result.ActualQuotaAfterGroup, DataConsentStateForTaskBillingContext(bc))
+		RecalculateTaskQuota(ctx, task, actualQuota, "任务用量表达式结算", result.Clamp, consentClamp)
 		return true
 	}
 	// 按次计费的成功任务保持预扣；失败任务由调用方全额退款。
@@ -696,8 +697,8 @@ func settleTaskBillingOnComplete(ctx context.Context, adaptor TaskPollingAdaptor
 	}
 	// 优先让 adaptor 决定最终额度。
 	if actualQuota := adaptor.AdjustBillingOnComplete(task, taskResult); actualQuota > 0 {
-		actualQuota = ApplyDataConsentMultiplierByInfo(actualQuota, DataConsentStateForTaskBillingContext(task.PrivateData.BillingContext))
-		RecalculateTaskQuota(ctx, task, actualQuota, "adaptor计费调整")
+		actualQuota, consentClamp := ApplyDataConsentMultiplierByInfoChecked(actualQuota, DataConsentStateForTaskBillingContext(task.PrivateData.BillingContext))
+		RecalculateTaskQuota(ctx, task, actualQuota, "adaptor计费调整", consentClamp)
 		return true
 	}
 	// 回退到 token 重算。

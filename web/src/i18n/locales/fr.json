@@ -5538,6 +5538,19 @@
     "Zero retention": "Aucune rétention",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Check-in tier reward": "Check-in tier reward",
+    "Check-in rewards are based on your cumulative API usage. Use more API credits to unlock higher daily rewards.": "Check-in rewards are based on your cumulative API usage. Use more API credits to unlock higher daily rewards.",
+    "Current reward range": "Current reward range",
+    "Cumulative usage": "Cumulative usage",
+    "Current tier threshold": "Current tier threshold",
+    "Next tier": "Next tier",
+    "Highest tier": "Highest tier",
+    "Use": "Use",
+    "more": "more",
+    "Unlocked": "Unlocked",
+    "Next tier reward range": "Next tier reward range",
+    "Tiered check-in rewards encourage active API usage, not recharge amount.": "Tiered check-in rewards encourage active API usage, not recharge amount.",
+    "Use {{amount}} more": "Use {{amount}} more"
   }
 }
