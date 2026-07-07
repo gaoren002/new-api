@@ -167,7 +167,7 @@ func ConsumeInviteCodeTx(tx *gorm.DB, code string, userId int, username string) 
 
 	var invite InviteCode
 	query := tx.Where("code = ?", normalized)
-	if !common.UsingSQLite {
+	if !common.UsingMainDatabase(common.DatabaseTypeSQLite) {
 		query = query.Set("gorm:query_option", "FOR UPDATE")
 	}
 	if err := query.First(&invite).Error; err != nil {
