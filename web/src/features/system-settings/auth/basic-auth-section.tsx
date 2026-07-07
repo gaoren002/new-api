@@ -31,6 +31,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 
@@ -49,6 +50,9 @@ const basicAuthSchema = z.object({
   PasswordRegisterEnabled: z.boolean(),
   EmailVerificationEnabled: z.boolean(),
   RegisterEnabled: z.boolean(),
+  InviteCodeRegisterEnabled: z.boolean(),
+  InviteCodeExpireMinutes: z.number().min(1),
+  InviteBotSecret: z.string(),
   EmailDomainRestrictionEnabled: z.boolean(),
   EmailAliasRestrictionEnabled: z.boolean(),
   EmailDomainWhitelist: z.string(),
@@ -83,7 +87,7 @@ export function BasicAuthSection({ defaultValues }: BasicAuthSectionProps) {
   useResetForm(form, formDefaults)
 
   const onSubmit = async (data: BasicAuthFormValues) => {
-    const updates: Array<{ key: string; value: string | boolean }> = []
+    const updates: Array<{ key: string; value: string | boolean | number }> = []
 
     Object.entries(data).forEach(([key, value]) => {
       if (key === 'EmailDomainWhitelist') {
@@ -176,6 +180,76 @@ export function BasicAuthSection({ defaultValues }: BasicAuthSectionProps) {
               </SettingsSwitchItem>
             )}
           />
+
+          <FormField
+            control={form.control}
+            name='InviteCodeRegisterEnabled'
+            render={({ field }) => (
+              <FormItem className='flex flex-row items-center justify-between rounded-lg border p-4'>
+                <div className='space-y-0.5'>
+                  <FormLabel className='text-base'>
+                    {t('Invite Code Registration')}
+                  </FormLabel>
+                  <FormDescription>
+                    {t('Require invite code for new user registration')}
+                  </FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          <div className='grid gap-4 md:grid-cols-2'>
+            <FormField
+              control={form.control}
+              name='InviteCodeExpireMinutes'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Invite Code TTL (minutes)')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      min={1}
+                      {...field}
+                      onChange={(event) =>
+                        field.onChange(Number(event.target.value) || 1)
+                      }
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t('Unexpired and unused invite codes are reused per QQ')}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='InviteBotSecret'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Invite Bot Secret')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='password'
+                      placeholder={t('Leave empty to keep existing secret')}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t('Used by POST /api/invite/bot/issue')}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
           <FormField
             control={form.control}

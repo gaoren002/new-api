@@ -18,14 +18,15 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { act, renderHook } from '@testing-library/react'
 import { toast } from 'sonner'
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { api, type RefreshOutcome } from '@/lib/api'
-import type { AuthBundle } from '@/stores/auth-store'
+import { useAuthStore, type AuthBundle } from '@/stores/auth-store'
 
-import { executeLogout } from './api'
+import { createOAuthFlow, executeLogout } from './api'
 import { useOAuthLogin } from './hooks/use-oauth-login'
 import { consumeOAuthLoginRedirect } from './lib/oauth-callback-mode'
+import { saveAffiliateCode, saveInviteCode } from './lib/storage'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -112,6 +113,59 @@ function mismatchError() {
     },
   }
 }
+
+describe('invite codes in OAuth state creation', () => {
+  const originalAdapter = api.defaults.adapter
+
+  beforeEach(() => {
+    localStorage.clear()
+    // A bind flow spends a single-use authorization, which needs a live access token.
+    useAuthStore.getState().auth.setBundle(bundle)
+  })
+  afterEach(() => {
+    api.defaults.adapter = originalAdapter
+    useAuthStore.getState().auth.reset()
+    localStorage.clear()
+  })
+
+  test.each(['login', 'bind'] as const)(
+    'preserves the state endpoint contract for the %s intent',
+    async (intent) => {
+      saveInviteCode(' invite-test ')
+      saveAffiliateCode('affiliate-test')
+      let requestBody: unknown
+      let skipAuthRefresh: boolean | undefined
+      api.defaults.adapter = async (config) => {
+        expect(config.url).toBe('/api/oauth/state')
+        expect(config.method).toBe('post')
+        requestBody = JSON.parse(config.data)
+        skipAuthRefresh = config.skipAuthRefresh
+        return {
+          data: { success: true, data: { flow_token: 'oauth-flow-token' } },
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config,
+        }
+      }
+
+      expect(await createOAuthFlow('github', intent)).toBe('oauth-flow-token')
+
+      const expectedBody: Record<string, string> = {
+        provider: 'github',
+        intent,
+      }
+      if (intent === 'login') {
+        expectedBody.aff = 'affiliate-test'
+        expectedBody.invite_code = 'INVITE-TEST'
+      }
+      expect(requestBody).toEqual(expectedBody)
+      // Neither flow may replay its request: bind spends a single-use authorization
+      // and login starts anonymously.
+      expect(skipAuthRefresh).toBe(true)
+    }
+  )
+})
 
 describe('logout coordination', () => {
   test('returns an unsuccessful response without pretending to sign out', async () => {

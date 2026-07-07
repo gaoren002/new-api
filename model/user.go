@@ -91,7 +91,8 @@ type User struct {
 	OidcId               string                     `json:"oidc_id" gorm:"column:oidc_id;index"`
 	WeChatId             string                     `json:"wechat_id" gorm:"column:wechat_id;index"`
 	TelegramId           string                     `json:"telegram_id" gorm:"column:telegram_id;index"`
-	VerificationCode     string                     `json:"verification_code" gorm:"-:all"`                         // this field is only for Email verification, don't save it to database!
+	VerificationCode     string                     `json:"verification_code" gorm:"-:all"` // this field is only for Email verification, don't save it to database!
+	InviteCode           string                     `json:"invite_code" gorm:"-:all" validate:"max=32"`
 	AccessToken          *string                    `json:"-" gorm:"type:char(32);column:access_token;uniqueIndex"` // Deprecated: 旧版面板访问令牌，仅在升级后的过渡期内使用；删除 users.access_token 列时一并移除。
 	AccessTokenCreatedAt *int64                     `json:"-" gorm:"type:bigint;column:access_token_created_at"`    // Deprecated: 旧版面板访问令牌，仅在升级后的过渡期内使用；删除 users.access_token 列时一并移除。
 	Quota                int                        `json:"quota" gorm:"type:int;default:0"`
@@ -755,9 +756,8 @@ func (user *User) InsertWithTx(tx *gorm.DB, inviterId int) error {
 	})
 }
 
-// FinalizeOAuthUserCreation performs post-transaction tasks for OAuth user creation.
-// This should be called after the transaction commits successfully.
-func (user *User) FinalizeOAuthUserCreation(inviterId int) {
+// FinalizeUserCreation performs post-transaction tasks after a new user is committed.
+func (user *User) FinalizeUserCreation(inviterId int) {
 	// 用户创建成功后，根据角色初始化边栏配置
 	var createdUser User
 	if err := DB.Where("id = ?", user.Id).First(&createdUser).Error; err == nil {
@@ -784,6 +784,11 @@ func (user *User) FinalizeOAuthUserCreation(inviterId int) {
 			_ = inviteUser(inviterId)
 		}
 	}
+}
+
+// FinalizeOAuthUserCreation keeps compatibility with the existing call sites.
+func (user *User) FinalizeOAuthUserCreation(inviterId int) {
+	user.FinalizeUserCreation(inviterId)
 }
 
 func (user *User) Update(updatePassword bool) error {

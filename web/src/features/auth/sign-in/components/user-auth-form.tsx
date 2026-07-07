@@ -45,6 +45,11 @@ import { OAuthProviders } from '@/features/auth/components/oauth-providers'
 import { loginFormSchema } from '@/features/auth/constants'
 import { useAuthRedirect } from '@/features/auth/hooks/use-auth-redirect'
 import { useTurnstile } from '@/features/auth/hooks/use-turnstile'
+import {
+  captureInviteCodeFromUrl,
+  normalizeInviteCode,
+  saveInviteCode,
+} from '@/features/auth/lib/storage'
 import { beginPasskeyLogin, finishPasskeyLogin } from '@/features/auth/passkey'
 import {
   requestPasskeyAssertion,
@@ -80,6 +85,7 @@ export function UserAuthForm({
   const [isWeChatDialogOpen, setIsWeChatDialogOpen] = useState(false)
   const [isWeChatSubmitting, setIsWeChatSubmitting] = useState(false)
   const [turnstileWidgetKey, setTurnstileWidgetKey] = useState(0)
+  const [inviteCode, setInviteCode] = useState('')
   const legalConsentErrorMessage = t('Please agree to the legal terms first')
   const loginFailedMessage = t('Login failed')
 
@@ -107,6 +113,10 @@ export function UserAuthForm({
   const hasUserAgreement = Boolean(status?.user_agreement_enabled)
   const hasPrivacyPolicy = Boolean(status?.privacy_policy_enabled)
   const requiresLegalConsent = hasUserAgreement || hasPrivacyPolicy
+  const inviteCodeRegisterEnabled = Boolean(
+    status?.invite_code_register_enabled ??
+    status?.data?.invite_code_register_enabled
+  )
   const passkeyButtonDisabled =
     isPasskeyLoading ||
     !passkeySupported ||
@@ -135,6 +145,10 @@ export function UserAuthForm({
     detectPasskeySupport()
       .then(setPasskeySupported)
       .catch(() => setPasskeySupported(false))
+  }, [])
+
+  useEffect(() => {
+    setInviteCode(captureInviteCodeFromUrl())
   }, [])
 
   const form = useForm<z.infer<typeof loginFormSchema>>({
@@ -222,7 +236,10 @@ export function UserAuthForm({
 
     setIsWeChatSubmitting(true)
     try {
-      const res = await wechatLoginByCode(wechatCode)
+      const res = await wechatLoginByCode(
+        wechatCode,
+        normalizeInviteCode(inviteCode) || undefined
+      )
       if (res?.success) {
         handleWeChatDialogChange(false)
         if (await handleLoginResult(res.data, redirectTo)) {
@@ -425,6 +442,31 @@ export function UserAuthForm({
           onCheckedChange={setAgreedToLegal}
           className='mt-1'
         />
+
+        {inviteCodeRegisterEnabled && (
+          <div className='space-y-2'>
+            <Label htmlFor='invite-code'>{t('Invite Code')}</Label>
+            <Input
+              id='invite-code'
+              placeholder={t(
+                'Only required for first-time third-party registration'
+              )}
+              value={inviteCode}
+              onChange={(event) => {
+                const normalizedInviteCode = normalizeInviteCode(
+                  event.target.value
+                )
+                setInviteCode(normalizedInviteCode)
+                saveInviteCode(normalizedInviteCode)
+              }}
+            />
+            <p className='text-muted-foreground text-xs'>
+              {t(
+                'Existing accounts can sign in directly. New third-party accounts will verify this code.'
+              )}
+            </p>
+          </div>
+        )}
 
         {!hasAlternativeLogin && alternativeLoginMethods}
       </form>

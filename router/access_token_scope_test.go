@@ -50,6 +50,8 @@ var accessTokenExemptRoutes = []string{
 	"GET /api/oauth/wechat",
 	"GET /api/oauth/telegram/login",
 	"GET /api/oauth/telegram/bind/:flow_token",
+	// The invite bot authenticates with its own shared secret in the handler.
+	"POST /api/invite/bot/issue",
 
 	// Browser session cookie endpoints.
 	"POST /api/user/auth/refresh",
