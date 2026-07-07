@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"time"
 
@@ -11,6 +12,60 @@ import (
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/gin-gonic/gin"
 )
+
+func buildCheckinTierProgress(userId int) (gin.H, any) {
+	usedQuota, err := model.GetUserUsedQuota(userId)
+	if err != nil {
+		return nil, nil
+	}
+
+	tiers := operation_setting.GetCheckinTiers()
+	usedDisplayAmount := operation_setting.QuotaToDisplayAmount(usedQuota)
+
+	var currentTier any
+	currentRewardMinQuota := 0
+	currentRewardMaxQuota := 0
+	currentTierMinUsedQuota := 0
+	if tier, ok := operation_setting.GetCheckinTierForUsedQuota(usedQuota); ok {
+		currentTier = tier
+		currentRewardMinQuota = operation_setting.DisplayAmountToQuota(tier.MinCNY)
+		currentRewardMaxQuota = operation_setting.DisplayAmountToQuota(tier.MaxCNY)
+		currentTierMinUsedQuota = operation_setting.DisplayAmountToQuota(float64(tier.MinUsedCNY))
+	}
+
+	var nextTier any
+	nextRewardMinQuota := 0
+	nextRewardMaxQuota := 0
+	nextTierMinUsedQuota := 0
+	amountToNextTierDisplay := 0.0
+	amountToNextTierQuota := 0
+	for _, tier := range tiers {
+		if usedDisplayAmount < float64(tier.MinUsedCNY) {
+			nextTier = tier
+			nextRewardMinQuota = operation_setting.DisplayAmountToQuota(tier.MinCNY)
+			nextRewardMaxQuota = operation_setting.DisplayAmountToQuota(tier.MaxCNY)
+			nextTierMinUsedQuota = operation_setting.DisplayAmountToQuota(float64(tier.MinUsedCNY))
+			amountToNextTierDisplay = math.Max(0, float64(tier.MinUsedCNY)-usedDisplayAmount)
+			amountToNextTierQuota = operation_setting.DisplayAmountToQuota(amountToNextTierDisplay)
+			break
+		}
+	}
+
+	return gin.H{
+		"used_quota":                         usedQuota,
+		"used_display_amount":                usedDisplayAmount,
+		"current_tier":                       currentTier,
+		"current_tier_min_used_quota":        currentTierMinUsedQuota,
+		"current_reward_min_quota":           currentRewardMinQuota,
+		"current_reward_max_quota":           currentRewardMaxQuota,
+		"next_tier":                          nextTier,
+		"next_tier_min_used_quota":           nextTierMinUsedQuota,
+		"next_reward_min_quota":              nextRewardMinQuota,
+		"next_reward_max_quota":              nextRewardMaxQuota,
+		"amount_to_next_tier_display_amount": amountToNextTierDisplay,
+		"amount_to_next_tier_quota":          amountToNextTierQuota,
+	}, currentTier
+}
 
 // GetCheckinStatus 获取用户签到状态和历史记录
 func GetCheckinStatus(c *gin.Context) {
@@ -32,13 +87,23 @@ func GetCheckinStatus(c *gin.Context) {
 		return
 	}
 
+	var matchedTier any
+	var tierProgress any
+	if setting.Tiered {
+		tierProgress, matchedTier = buildCheckinTierProgress(userId)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"enabled":   setting.Enabled,
-			"min_quota": setting.MinQuota,
-			"max_quota": setting.MaxQuota,
-			"stats":     stats,
+			"enabled":       setting.Enabled,
+			"min_quota":     setting.MinQuota,
+			"max_quota":     setting.MaxQuota,
+			"tiered":        setting.Tiered,
+			"tiers":         operation_setting.GetCheckinTiers(),
+			"matched_tier":  matchedTier,
+			"tier_progress": tierProgress,
+			"stats":         stats,
 		},
 	})
 }

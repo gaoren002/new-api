@@ -27,6 +27,11 @@ import {
 const defaultBillingSettings: BillingSettings = {
   QuotaForNewUser: 0,
   PreConsumedQuota: 0,
+  'data_consent.enabled': false,
+  'data_consent.accepted_multiplier': 0.95,
+  'data_consent.declined_multiplier': 1.0,
+  'data_consent.agreement_version': 'v1',
+  'data_consent.agreement_content': '',
   QuotaForInviter: 0,
   QuotaForInvitee: 0,
   TopUpLink: '',
@@ -102,9 +107,6 @@ const defaultBillingSettings: BillingSettings = {
   WaffoPancakeReturnURL: '',
   WaffoPancakeStoreID: '',
   WaffoPancakeProductID: '',
-  'checkin_setting.enabled': false,
-  'checkin_setting.min_quota': 1000,
-  'checkin_setting.max_quota': 10000,
 }
 
 export function BillingSettings() {

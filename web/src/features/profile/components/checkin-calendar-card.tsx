@@ -120,6 +120,15 @@ export function CheckinCalendarCard({
 
   const checkedToday = checkinData?.stats?.checked_in_today === true
   const todayAward = checkinRecordsMap[todayString]
+  const tierProgress = checkinData?.tier_progress
+  const currentRewardText =
+    tierProgress && checkinData?.tiered
+      ? `${formatQuotaWithCurrency(tierProgress.current_reward_min_quota)} - ${formatQuotaWithCurrency(tierProgress.current_reward_max_quota)}`
+      : null
+  const nextRewardText =
+    tierProgress?.next_tier && checkinData?.tiered
+      ? `${formatQuotaWithCurrency(tierProgress.next_reward_min_quota)} - ${formatQuotaWithCurrency(tierProgress.next_reward_max_quota)}`
+      : null
 
   useEffect(() => {
     if (initialLoaded) return
@@ -368,6 +377,87 @@ export function CheckinCalendarCard({
               </div>
             </div>
 
+            {checkinData?.tiered && tierProgress ? (
+              <div className='border-b p-4 sm:p-6'>
+                <div className='bg-primary/5 rounded-xl border p-4'>
+                  <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
+                    <div>
+                      <div className='text-sm font-semibold'>
+                        {t('Check-in tier reward')}
+                      </div>
+                      <div className='text-muted-foreground mt-1 text-xs leading-relaxed'>
+                        {t(
+                          'Check-in rewards are based on your cumulative API usage. Use more API credits to unlock higher daily rewards.'
+                        )}
+                      </div>
+                    </div>
+                    <div className='bg-background rounded-lg border px-3 py-2 text-left sm:text-right'>
+                      <div className='text-muted-foreground text-[11px] font-medium'>
+                        {t('Current reward range')}
+                      </div>
+                      <div className='text-sm font-semibold tabular-nums'>
+                        {currentRewardText}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className='mt-4 grid gap-3 sm:grid-cols-3'>
+                    <div className='bg-background rounded-lg border p-3'>
+                      <div className='text-muted-foreground text-[11px] font-medium'>
+                        {t('Cumulative usage')}
+                      </div>
+                      <div className='mt-1 text-sm font-semibold tabular-nums'>
+                        {formatQuotaWithCurrency(tierProgress.used_quota, {
+                          digitsLarge: 2,
+                          digitsSmall: 4,
+                        })}
+                      </div>
+                    </div>
+                    <div className='bg-background rounded-lg border p-3'>
+                      <div className='text-muted-foreground text-[11px] font-medium'>
+                        {t('Current tier threshold')}
+                      </div>
+                      <div className='mt-1 text-sm font-semibold tabular-nums'>
+                        {formatQuotaWithCurrency(
+                          tierProgress.current_tier_min_used_quota,
+                          {
+                            digitsLarge: 2,
+                            digitsSmall: 4,
+                          }
+                        )}
+                      </div>
+                    </div>
+                    <div className='bg-background rounded-lg border p-3'>
+                      <div className='text-muted-foreground text-[11px] font-medium'>
+                        {tierProgress.next_tier
+                          ? t('Next tier')
+                          : t('Highest tier')}
+                      </div>
+                      <div className='mt-1 text-sm font-semibold tabular-nums'>
+                        {tierProgress.next_tier
+                          ? t('Use {{amount}} more', {
+                              amount: formatQuotaWithCurrency(
+                                tierProgress.amount_to_next_tier_quota,
+                                {
+                                  digitsLarge: 2,
+                                  digitsSmall: 4,
+                                }
+                              ),
+                            })
+                          : t('Unlocked')}
+                      </div>
+                    </div>
+                  </div>
+
+                  {tierProgress.next_tier ? (
+                    <div className='text-muted-foreground mt-3 text-xs'>
+                      {t('Next tier reward range')}: {nextRewardText}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
             {/* Calendar */}
             <div className='p-4 sm:p-6'>
               <div className='space-y-3 sm:space-y-4'>
@@ -471,6 +561,13 @@ export function CheckinCalendarCard({
                     <li>
                       {t('Check in daily to receive random quota rewards')}
                     </li>
+                    {checkinData?.tiered ? (
+                      <li>
+                        {t(
+                          'Tiered check-in rewards encourage active API usage, not recharge amount.'
+                        )}
+                      </li>
+                    ) : null}
                     <li>
                       {t('Rewards will be added directly to your balance')}
                     </li>

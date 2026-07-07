@@ -118,6 +118,12 @@ export interface UserSettings {
   upstream_model_update_notify_enabled?: boolean
   /** Preferred interface/API response language */
   language?: string
+  /** Data authorization agreement status */
+  data_consent_status?: 'accepted' | 'declined' | 'unset' | ''
+  /** Data authorization agreement version */
+  data_consent_version?: string
+  /** Data authorization agreement update time */
+  data_consent_updated_at?: number
 }
 
 /**
@@ -145,6 +151,10 @@ export interface UpdateUserSettingsRequest {
   accept_unset_model_ratio_model?: boolean
   record_ip_log?: boolean
   upstream_model_update_notify_enabled?: boolean
+}
+
+export interface UpdateDataConsentRequest {
+  status: 'accepted' | 'declined'
 }
 
 /**
@@ -199,6 +209,27 @@ export interface CheckinRecord {
   quota_awarded: number
 }
 
+export interface CheckinTier {
+  min_used_cny: number
+  min_cny: number
+  max_cny: number
+}
+
+export interface CheckinTierProgress {
+  used_quota: number
+  used_display_amount: number
+  current_tier?: CheckinTier | null
+  current_tier_min_used_quota: number
+  current_reward_min_quota: number
+  current_reward_max_quota: number
+  next_tier?: CheckinTier | null
+  next_tier_min_used_quota: number
+  next_reward_min_quota: number
+  next_reward_max_quota: number
+  amount_to_next_tier_display_amount: number
+  amount_to_next_tier_quota: number
+}
+
 /**
  * Checkin statistics
  */
@@ -221,6 +252,18 @@ export interface CheckinStats {
 export interface CheckinStatusResponse {
   /** Whether check-in feature is enabled */
   enabled: boolean
+  /** Legacy minimum quota reward */
+  min_quota?: number
+  /** Legacy maximum quota reward */
+  max_quota?: number
+  /** Whether cumulative usage tiers are enabled */
+  tiered?: boolean
+  /** Configured cumulative usage tiers */
+  tiers?: CheckinTier[]
+  /** The tier currently matched for this user */
+  matched_tier?: CheckinTier | null
+  /** Current user's tier progress when tiered check-in is enabled */
+  tier_progress?: CheckinTierProgress | null
   /** Check-in statistics */
   stats: CheckinStats
 }

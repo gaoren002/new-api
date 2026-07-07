@@ -67,10 +67,9 @@ func UserCheckin(userId int) (*Checkin, error) {
 		return nil, errors.New("今日已签到")
 	}
 
-	// 计算随机额度奖励
-	quotaAwarded := setting.MinQuota
-	if setting.MaxQuota > setting.MinQuota {
-		quotaAwarded = setting.MinQuota + rand.Intn(setting.MaxQuota-setting.MinQuota+1)
+	quotaAwarded, err := calculateCheckinQuota(userId, setting)
+	if err != nil {
+		return nil, err
 	}
 
 	today := time.Now().Format("2006-01-02")
@@ -89,6 +88,41 @@ func UserCheckin(userId int) (*Checkin, error) {
 
 	// MySQL 和 PostgreSQL 支持事务，使用事务保证原子性
 	return userCheckinWithTransaction(checkin, userId, quotaAwarded)
+}
+
+func calculateCheckinQuota(userId int, setting *operation_setting.CheckinSetting) (int, error) {
+	if setting != nil && setting.Tiered {
+		usedQuota, err := GetUserUsedQuota(userId)
+		if err != nil {
+			return 0, err
+		}
+		if tier, ok := operation_setting.GetCheckinTierForUsedQuota(usedQuota); ok {
+			minQuota := operation_setting.DisplayAmountToQuota(tier.MinCNY)
+			maxQuota := operation_setting.DisplayAmountToQuota(tier.MaxCNY)
+			return randomQuotaInRange(minQuota, maxQuota), nil
+		}
+		if operation_setting.GetCheckinFallbackMode() == "none" {
+			return 0, nil
+		}
+	}
+
+	return randomQuotaInRange(setting.MinQuota, setting.MaxQuota), nil
+}
+
+func randomQuotaInRange(minQuota, maxQuota int) int {
+	if minQuota < 0 {
+		minQuota = 0
+	}
+	if maxQuota < 0 {
+		maxQuota = 0
+	}
+	if maxQuota < minQuota {
+		minQuota, maxQuota = maxQuota, minQuota
+	}
+	if maxQuota > minQuota {
+		return minQuota + rand.Intn(maxQuota-minQuota+1)
+	}
+	return minQuota
 }
 
 // userCheckinWithTransaction 使用事务执行签到（适用于 MySQL 和 PostgreSQL）
