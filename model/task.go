@@ -157,13 +157,19 @@ type TaskPluginAuthorSnapshot struct {
 
 // TaskBillingContext 记录任务提交时的计费参数，以便轮询阶段可以重新计算额度。
 type TaskBillingContext struct {
-	ModelPrice      float64                      `json:"model_price,omitempty"`       // 模型单价
-	GroupRatio      float64                      `json:"group_ratio,omitempty"`       // 分组倍率
-	ModelRatio      float64                      `json:"model_ratio,omitempty"`       // 模型倍率
-	OtherRatios     map[string]float64           `json:"other_ratios,omitempty"`      // 附加倍率（时长、分辨率等）
-	OriginModelName string                       `json:"origin_model_name,omitempty"` // 模型名称，必须为OriginModelName
-	PerCallBilling  bool                         `json:"per_call_billing,omitempty"`  // 按次计费：跳过轮询阶段的差额结算
-	TieredSnapshot  *billingexpr.BillingSnapshot `json:"tiered_snapshot,omitempty"`
+	ModelPrice                  float64                      `json:"model_price,omitempty"`       // 模型单价
+	GroupRatio                  float64                      `json:"group_ratio,omitempty"`       // 分组倍率
+	ModelRatio                  float64                      `json:"model_ratio,omitempty"`       // 模型倍率
+	OtherRatios                 map[string]float64           `json:"other_ratios,omitempty"`      // 附加倍率（时长、分辨率等）
+	OriginModelName             string                       `json:"origin_model_name,omitempty"` // 模型名称，必须为OriginModelName
+	PerCallBilling              bool                         `json:"per_call_billing,omitempty"`  // 按次计费：跳过轮询阶段的差额结算
+	TieredSnapshot              *billingexpr.BillingSnapshot `json:"tiered_snapshot,omitempty"`
+	DataConsentEnabled          bool                         `json:"data_consent_enabled,omitempty"`           // 数据授权计费是否启用
+	DataConsentStatus           string                       `json:"data_consent_status,omitempty"`            // 数据授权状态
+	DataConsentAuthorized       bool                         `json:"data_consent_authorized,omitempty"`        // 是否授权采集
+	DataConsentPriceMultiplier  float64                      `json:"data_consent_price_multiplier,omitempty"`  // 数据授权价格倍率
+	DataConsentAgreementVersion string                       `json:"data_consent_agreement_version,omitempty"` // 协议版本
+	DataConsentUserVersion      string                       `json:"data_consent_user_version,omitempty"`      // 用户确认版本
 }
 
 // GetUpstreamTaskID 获取上游真实 task ID（用于与 provider 通信）

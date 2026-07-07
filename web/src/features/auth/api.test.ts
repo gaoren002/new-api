@@ -16,12 +16,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 
-import type { RefreshOutcome } from '@/lib/api'
+import { api, type RefreshOutcome } from '@/lib/api'
 import type { AuthBundle } from '@/stores/auth-store'
 
-import { executeLogout } from './api'
+import { createOAuthFlow, executeLogout } from './api'
+import { saveAffiliateCode, saveInviteCode } from './lib/storage'
 
 const bundle: AuthBundle = {
   access_token: 'access-token',
@@ -49,6 +50,52 @@ function mismatchError() {
     },
   }
 }
+
+describe('invite codes in OAuth state creation', () => {
+  const originalAdapter = api.defaults.adapter
+
+  beforeEach(() => localStorage.clear())
+  afterEach(() => {
+    api.defaults.adapter = originalAdapter
+    localStorage.clear()
+  })
+
+  test.each(['login', 'bind'] as const)(
+    'preserves the state endpoint contract for the %s intent',
+    async (intent) => {
+      saveInviteCode(' invite-test ')
+      saveAffiliateCode('affiliate-test')
+      let requestBody: unknown
+      let skipAuthRefresh: boolean | undefined
+      api.defaults.adapter = async (config) => {
+        expect(config.url).toBe('/api/oauth/state')
+        expect(config.method).toBe('post')
+        requestBody = JSON.parse(config.data)
+        skipAuthRefresh = config.skipAuthRefresh
+        return {
+          data: { success: true, data: { flow_token: 'oauth-flow-token' } },
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config,
+        }
+      }
+
+      expect(await createOAuthFlow('github', intent)).toBe('oauth-flow-token')
+
+      const expectedBody: Record<string, string> = {
+        provider: 'github',
+        intent,
+      }
+      if (intent === 'login') {
+        expectedBody.aff = 'affiliate-test'
+        expectedBody.invite_code = 'INVITE-TEST'
+      }
+      expect(requestBody).toEqual(expectedBody)
+      expect(skipAuthRefresh).toBe(intent === 'login')
+    }
+  )
+})
 
 describe('logout coordination', () => {
   test('returns an unsuccessful response without pretending to sign out', async () => {

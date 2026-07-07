@@ -39,6 +39,7 @@ export interface RegisterPayload {
   password: string
   email?: string
   verification_code?: string
+  invite_code?: string
   aff_code?: string
   turnstile?: string
 }
@@ -120,6 +121,7 @@ export interface SystemStatus {
     turnstile_check?: boolean
     turnstile_site_key?: string
     email_verification?: boolean
+    invite_code_register_enabled?: boolean
     self_use_mode_enabled?: boolean
     display_in_currency?: boolean
     display_token_stat_enabled?: boolean
@@ -131,6 +133,11 @@ export interface SystemStatus {
     demo_site_enabled?: boolean
     user_agreement_enabled?: boolean
     privacy_policy_enabled?: boolean
+    data_consent_enabled?: boolean
+    data_consent_agreement_version?: string
+    data_consent_agreement_content?: string
+    data_consent_accepted_multiplier?: number
+    data_consent_declined_multiplier?: number
     oauth_register_enabled?: boolean
     register_enabled?: boolean
     password_login_enabled?: boolean
@@ -166,6 +173,7 @@ export interface SystemStatus {
   turnstile_check?: boolean
   turnstile_site_key?: string
   email_verification?: boolean
+  invite_code_register_enabled?: boolean
   self_use_mode_enabled?: boolean
   display_in_currency?: boolean
   display_token_stat_enabled?: boolean
@@ -177,6 +185,11 @@ export interface SystemStatus {
   demo_site_enabled?: boolean
   user_agreement_enabled?: boolean
   privacy_policy_enabled?: boolean
+  data_consent_enabled?: boolean
+  data_consent_agreement_version?: string
+  data_consent_agreement_content?: string
+  data_consent_accepted_multiplier?: number
+  data_consent_declined_multiplier?: number
   oauth_register_enabled?: boolean
   register_enabled?: boolean
   password_login_enabled?: boolean
