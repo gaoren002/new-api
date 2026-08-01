@@ -363,6 +363,9 @@ func migrateDB() error {
 		&SystemInstance{},
 		&SystemTask{},
 		&SystemTaskLock{},
+		&PromptAuditJob{},
+		&PromptAuditEvent{},
+		&PromptAuditQueueLock{},
 		&CasbinRule{},
 		&AuthzRole{},
 	)

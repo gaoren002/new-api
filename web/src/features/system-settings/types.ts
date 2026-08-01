@@ -39,6 +39,22 @@ export type UpdateOptionResponse = {
   message: string
 }
 
+export type PromptAuditProbeRequest = {
+  base_url: string
+  model: string
+  api_key: string
+  timeout_ms: number
+  input_limit: number
+  max_concurrency: number
+  scanners: string
+}
+
+export type PromptAuditProbeResponse = {
+  success: boolean
+  message: string
+  latency_ms?: number
+}
+
 export type ConfirmPaymentComplianceResponse = {
   success: boolean
   message: string
@@ -394,6 +410,17 @@ export type SecuritySettings = {
   CheckSensitiveEnabled: boolean
   CheckSensitiveOnPromptEnabled: boolean
   SensitiveWords: string
+  PromptAuditEnabled: boolean
+  PromptAuditBaseURL: string
+  PromptAuditModel: string
+  PromptAuditTimeoutMS: number
+  PromptAuditFailClosed: boolean
+  PromptAuditInputLimit: number
+  PromptAuditMaxConcurrency: number
+  PromptAuditScanners: string
+  PromptAuditGroupPolicies: string
+  PromptAuditKeyConfigured: boolean
+  GroupRatio: string
   'fetch_setting.enable_ssrf_protection': boolean
   'fetch_setting.allow_private_ip': boolean
   'fetch_setting.domain_filter_mode': boolean
@@ -403,6 +430,172 @@ export type SecuritySettings = {
   'fetch_setting.allowed_ports': number[]
   'fetch_setting.apply_ip_filter_for_domain': boolean
   'token_setting.max_user_tokens': number
+}
+
+export type PromptAuditMode = 'off' | 'async_audit' | 'blocking'
+
+export type PromptAuditEndpoint = {
+  id: string
+  name: string
+  protocol: 'openai_compatible'
+  base_url: string
+  model: string
+  timeout_ms: number
+  input_limit: number
+  enabled: boolean
+  has_token: boolean
+  token_status: string
+  token?: string
+  clear_token?: boolean
+}
+
+export type PromptAuditGroupPolicyConfig = {
+  mode: PromptAuditMode
+  enabled: boolean
+  fail_closed: boolean
+  scanners: string[]
+}
+
+export type PromptAuditConfig = {
+  mode: PromptAuditMode
+  blocking_latest_turn_only: boolean
+  store_pass_events: boolean
+  strategy: 'priority'
+  worker_count: number
+  queue_capacity: number
+  scanners: string[]
+  fail_closed: boolean
+  endpoints: PromptAuditEndpoint[]
+  group_policies: Record<string, PromptAuditGroupPolicyConfig>
+  config_version: number
+  updated_at: string
+  updated_by: number
+  encryption_key_configured: boolean
+}
+
+export type PromptAuditRuntime = {
+  process_status: string
+  effective_mode: PromptAuditMode
+  expected_config_version: number
+  active_config_version: number
+  config_loaded_at?: string
+  config_load_error?: string
+  worker_total: number
+  worker_active: number
+  worker_heartbeat_at?: string
+  last_processed_at?: string
+  queue_capacity: number
+  queue: Record<string, number>
+  database_status: string
+  redis_status: string
+  last_error_code?: string
+  last_error_message?: string
+  endpoints: Record<string, PromptAuditProbeResult>
+  guard_metrics: Record<string, number>
+}
+
+export type PromptAuditProbeResult = {
+  ok: boolean
+  status: string
+  error_code?: string
+  message: string
+  latency_ms: number
+  http_status: number
+  retryable: boolean
+  checked_at: string
+  token_applied: boolean
+}
+
+export type PromptAuditEvent = {
+  id: number
+  created_at: number
+  request_id: string
+  user_id: number
+  username: string
+  user_email: string
+  token_id: number
+  token_name: string
+  group: string
+  provider: string
+  endpoint: string
+  protocol: string
+  model: string
+  redacted_preview: string
+  prompt_hash: string
+  full_prompt: string
+  prompt_length: number
+  message_count: number
+  stage: string
+  decision: 'pass' | 'flag' | 'critical'
+  risk_level: 'low' | 'medium' | 'high' | 'critical'
+  action: string
+  safety: string
+  categories: string[]
+  matched_scanners: string[]
+  unknown_categories: string[]
+  scanner_scores: Record<string, number>
+  scanner_evidence: Record<string, string>
+  issue_summaries: PromptAuditIssueSummary[]
+  scanner_backend: string
+  scanner_version: string
+  guard_endpoint_id: string
+  config_version: number
+  policy_id: string
+  policy_version: number
+  latency_ms: number
+  chunk_total: number
+}
+
+export type PromptAuditIssueSummary = {
+  category: string
+  scanner_id: string
+  title: string
+  description?: string
+  severity: string
+  severity_label?: string
+  action: string
+  action_label?: string
+  code: string
+  score: number
+  evidence?: string
+  evidence_hash?: string
+}
+
+export type PromptAuditEventFilter = {
+  decision?: string
+  risk_level?: string
+  group?: string
+  user_id?: number
+  token_id?: number
+  model?: string
+  request_id?: string
+  prompt_hash?: string
+  endpoint?: string
+  keyword?: string
+  start_time?: number
+  end_time?: number
+}
+
+export type PromptAuditDeleteResult = {
+  deleted_events: number
+  deleted_jobs: number
+}
+
+export type PromptAuditDeletePreview = {
+  matched_count: number
+  filter_summary: PromptAuditEventFilter
+  snapshot_max_id: number
+  filter_hash: string
+  confirmation_token: string
+  expires_at: string
+}
+
+export type PromptAuditEventPage = {
+  items: PromptAuditEvent[]
+  total: number
+  page: number
+  page_size: number
+  pages: number
 }
 
 export type UpstreamChannel = {
