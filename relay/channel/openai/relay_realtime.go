@@ -31,6 +31,7 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*types.
 	receiveChan := make(chan []byte, 100)
 	errChan := make(chan error, 2)
 	auditErrChan := make(chan *types.NewAPIError, 1)
+	cyberPolicyChan := make(chan struct{}, 1)
 
 	usage := &dto.RealtimeUsage{}
 	localUsage := &dto.RealtimeUsage{}
@@ -124,6 +125,27 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*types.
 					close(targetClosed)
 					return
 				}
+				if cyberPolicy, cyberMessage := service.DetectCyberPolicyPayload(message); cyberPolicy {
+					inputTokens, outputTokens := service.ExtractCyberPolicyUsage(message)
+					usage.TotalTokens += inputTokens + outputTokens
+					usage.InputTokens += inputTokens
+					usage.OutputTokens += outputTokens
+					usage.InputTokenDetails.TextTokens += inputTokens
+					usage.OutputTokenDetails.TextTokens += outputTokens
+					service.MarkCyberPolicy(c, service.CyberPolicyMark{
+						Message: cyberMessage, Body: string(message), UpstreamStatus: 200,
+						UpstreamInputTokens: inputTokens, UpstreamOutputTokens: outputTokens,
+					})
+					if writeErr := helper.WssString(c, clientConn, string(message)); writeErr != nil {
+						errChan <- fmt.Errorf("error forwarding cyber policy response: %v", writeErr)
+						return
+					}
+					select {
+					case cyberPolicyChan <- struct{}{}:
+					default:
+					}
+					return
+				}
 				info.SetFirstResponseTime()
 				realtimeEvent := &dto.RealtimeEvent{}
 				err = common.Unmarshal(message, realtimeEvent)
@@ -211,6 +233,7 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*types.
 		}
 	})
 
+	cyberPolicyDetected := false
 	select {
 	case <-clientClosed:
 	case <-targetClosed:
@@ -219,15 +242,20 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*types.
 		logger.LogError(c, "realtime error: "+err.Error())
 	case auditErr := <-auditErrChan:
 		return auditErr, sumUsage
+	case <-cyberPolicyChan:
+		cyberPolicyDetected = true
 	case <-c.Done():
 	}
 
-	if usage.TotalTokens != 0 {
-		_ = preConsumeUsage(c, info, usage, sumUsage)
-	}
-
-	if localUsage.TotalTokens != 0 {
-		_ = preConsumeUsage(c, info, localUsage, sumUsage)
+	if cyberPolicyDetected {
+		addRealtimeUsage(sumUsage, usage)
+	} else {
+		if usage.TotalTokens != 0 {
+			_ = preConsumeUsage(c, info, usage, sumUsage)
+		}
+		if localUsage.TotalTokens != 0 {
+			_ = preConsumeUsage(c, info, localUsage, sumUsage)
+		}
 	}
 
 	// check usage total tokens, if 0, use local usage
@@ -240,6 +268,16 @@ func preConsumeUsage(ctx *gin.Context, info *relaycommon.RelayInfo, usage *dto.R
 		return fmt.Errorf("invalid usage pointer")
 	}
 
+	addRealtimeUsage(totalUsage, usage)
+	// clear usage
+	err := service.PreWssConsumeQuota(ctx, info, usage)
+	return err
+}
+
+func addRealtimeUsage(totalUsage *dto.RealtimeUsage, usage *dto.RealtimeUsage) {
+	if usage == nil || totalUsage == nil {
+		return
+	}
 	totalUsage.TotalTokens += usage.TotalTokens
 	totalUsage.InputTokens += usage.InputTokens
 	totalUsage.OutputTokens += usage.OutputTokens
@@ -248,7 +286,4 @@ func preConsumeUsage(ctx *gin.Context, info *relaycommon.RelayInfo, usage *dto.R
 	totalUsage.InputTokenDetails.AudioTokens += usage.InputTokenDetails.AudioTokens
 	totalUsage.OutputTokenDetails.TextTokens += usage.OutputTokenDetails.TextTokens
 	totalUsage.OutputTokenDetails.AudioTokens += usage.OutputTokenDetails.AudioTokens
-	// clear usage
-	err := service.PreWssConsumeQuota(ctx, info, usage)
-	return err
 }

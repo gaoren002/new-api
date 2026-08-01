@@ -460,6 +460,7 @@ export type PromptAuditConfig = {
   mode: PromptAuditMode
   blocking_latest_turn_only: boolean
   store_pass_events: boolean
+  store_blocked_events_only: boolean
   strategy: 'priority'
   worker_count: number
   queue_capacity: number
@@ -471,6 +472,159 @@ export type PromptAuditConfig = {
   updated_at: string
   updated_by: number
   encryption_key_configured: boolean
+  content_moderation_active: boolean
+}
+
+export type ContentModerationMode = 'off' | 'observe' | 'pre_block'
+
+export type ContentModerationAPIKeyStatus = {
+  index: number
+  key_hash: string
+  masked: string
+  status: string
+  failure_count: number
+  success_count: number
+  last_error: string
+  last_checked_at?: string
+  frozen_until?: string
+  last_latency_ms: number
+  last_http_status: number
+  active: number
+  total_calls: number
+  error_count: number
+  average_latency_ms: number
+  configured: boolean
+}
+
+export type ContentModerationModelFilter = {
+  type: 'all' | 'include' | 'exclude'
+  models: string[]
+}
+
+export type ContentModerationConfig = {
+  enabled: boolean
+  mode: ContentModerationMode
+  base_url: string
+  model: string
+  proxy_url: string
+  api_key_count: number
+  api_key_statuses: ContentModerationAPIKeyStatus[]
+  timeout_ms: number
+  sample_rate: number
+  all_groups: boolean
+  groups: string[]
+  record_non_hits: boolean
+  thresholds: Record<string, number>
+  worker_count: number
+  queue_size: number
+  block_status: number
+  block_message: string
+  email_on_hit: boolean
+  auto_ban_enabled: boolean
+  ban_threshold: number
+  violation_window_hours: number
+  retry_count: number
+  hit_retention_days: number
+  non_hit_retention_days: number
+  pre_hash_check_enabled: boolean
+  blocked_keywords: string[]
+  keyword_blocking_mode: 'keyword_only' | 'keyword_and_api' | 'api_only'
+  model_filter: ContentModerationModelFilter
+  cyber_policy_exclude_from_ban_count: boolean
+  cyber_session_block_enabled: boolean
+  cyber_session_block_ttl_seconds: number
+  config_version: number
+  updated_at: string
+  updated_by: number
+  encryption_key_configured: boolean
+  prompt_audit_active: boolean
+}
+
+export type ContentModerationRuntime = {
+  enabled: boolean
+  mode: ContentModerationMode
+  worker_count: number
+  max_workers: number
+  active_workers: number
+  queue_size: number
+  queue_length: number
+  queue_usage_percent: number
+  enqueued: number
+  dropped: number
+  processed: number
+  errors: number
+  pre_block_active: number
+  pre_block_checked: number
+  pre_block_allowed: number
+  pre_block_blocked: number
+  pre_block_errors: number
+  pre_block_avg_latency_ms: number
+  pre_block_api_key_active: number
+  pre_block_api_key_available_count: number
+  pre_block_api_key_total_calls: number
+  api_key_statuses: ContentModerationAPIKeyStatus[]
+  flagged_hash_count: number
+  last_cleanup_at?: string
+  last_cleanup_deleted_hit: number
+  last_cleanup_deleted_non_hit: number
+  config_version: number
+  prompt_audit_active: boolean
+  encryption_key_configured: boolean
+}
+
+export type ContentModerationLog = {
+  id: number
+  created_at: number
+  request_id: string
+  user_id: number
+  username: string
+  user_email: string
+  token_id: number
+  token_name: string
+  group: string
+  endpoint: string
+  provider: string
+  protocol: string
+  model: string
+  mode: ContentModerationMode
+  action: string
+  flagged: boolean
+  highest_category: string
+  highest_score: number
+  matched_keyword: string
+  category_scores: Record<string, number>
+  threshold_snapshot: Record<string, number>
+  input_hash: string
+  input_excerpt: string
+  upstream_latency_ms?: number
+  queue_delay_ms?: number
+  error: string
+  violation_count: number
+  auto_banned: boolean
+  email_sent: boolean
+  user_status: number
+}
+
+export type ContentModerationLogPage = {
+  items: ContentModerationLog[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export type ContentModerationTestResult = {
+  items: ContentModerationAPIKeyStatus[]
+  audit_result?: {
+    allowed: boolean
+    blocked: boolean
+    flagged: boolean
+    highest_category: string
+    highest_score: number
+    composite_score: number
+    category_scores: Record<string, number>
+    thresholds: Record<string, number>
+  }
+  image_count: number
 }
 
 export type PromptAuditRuntime = {

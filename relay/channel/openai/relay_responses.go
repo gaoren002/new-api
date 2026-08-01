@@ -78,7 +78,7 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 	imageCommitted := false
 
 	helper.StreamScannerHandler(c, resp, info, func(data string, sr *helper.StreamResult) {
-
+		cyberPolicy, cyberMessage := service.DetectCyberPolicyPayload(common.StringToByteSlice(data))
 		// 检查当前数据是否包含 completed 状态和 usage 信息
 		var streamResponse dto.ResponsesStreamResponse
 		if err := common.UnmarshalJsonStr(data, &streamResponse); err != nil {
@@ -87,6 +87,12 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 			return
 		}
 		sendResponsesStreamData(c, streamResponse, data)
+		if cyberPolicy {
+			service.MarkCyberPolicy(c, service.CyberPolicyMark{Message: cyberMessage, Body: data, UpstreamStatus: http.StatusOK})
+			usage = cyberPolicyTextUsage(common.StringToByteSlice(data))
+			sr.Done()
+			return
+		}
 		switch streamResponse.Type {
 		case "response.completed", "response.done":
 			if streamResponse.Response != nil {
@@ -139,6 +145,11 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 		}
 	})
 
+	if service.GetCyberPolicyMark(c) != nil {
+		// A policy rejection is billed only from explicit upstream usage,
+		// never from partial output or the request's local estimate.
+		return usage, nil
+	}
 	if usage.CompletionTokens == 0 {
 		// 计算输出文本的 token 数量
 		tempStr := responseTextBuilder.String()

@@ -153,6 +153,9 @@ func SetRelayRouter(router *gin.Engine) {
 		httpRouter.POST("/moderations", func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatOpenAI)
 		})
+		httpRouter.POST("/guard/moderations", func(c *gin.Context) {
+			controller.Relay(c, types.RelayFormatOpenAI)
+		})
 
 		// not implemented
 		httpRouter.POST("/images/variations", controller.RelayNotImplemented)

@@ -239,6 +239,9 @@ func main() {
 	if err := service.StopPromptAuditService(ctx); err != nil {
 		common.SysError(fmt.Sprintf("prompt audit service shutdown failed: %v", err))
 	}
+	if err := service.StopContentModerationService(ctx); err != nil {
+		common.SysError(fmt.Sprintf("content moderation service shutdown failed: %v", err))
+	}
 	// 内存中的看板数据保存入库，避免重启丢失未落库数据 (issue #5679)
 	if common.DataExportEnabled {
 		model.SaveQuotaDataCache()
@@ -353,6 +356,7 @@ func InitResources() error {
 		return err
 	}
 	service.StartPromptAuditService()
+	service.StartContentModerationService()
 
 	perfmetrics.Init()
 
