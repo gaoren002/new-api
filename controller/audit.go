@@ -52,6 +52,13 @@ var auditContentTemplates = map[string]string{
 	"option.passkey_domains_blocked":   "Passkey domain change blocked: ${domains}; affected ${known}; unknown ${unknown}",
 	"option.passkey_domains_failed":    "Passkey domain update failed",
 
+	"prompt_audit.config_update":        "Updated prompt audit configuration from version ${from_version} to ${to_version}",
+	"prompt_audit.endpoint_probe":       "Probed prompt audit endpoint ${endpoint_id} (${status})",
+	"prompt_audit.event_delete":         "Deleted ${deleted_events} prompt audit events",
+	"prompt_audit.event_delete_batch":   "Batch deleted ${deleted_events} prompt audit events",
+	"prompt_audit.event_delete_preview": "Previewed deletion of ${matched_count} prompt audit events",
+	"prompt_audit.event_delete_filter":  "Deleted ${deleted_events} prompt audit events by filter",
+
 	"channel.create":             "Created channel ${name} (type ${type}, count ${count})",
 	"channel.update":             "Updated channel ${name} (ID: ${id})",
 	"channel.delete":             "Deleted channel ${name} (ID: ${id})",

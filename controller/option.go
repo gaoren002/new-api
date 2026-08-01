@@ -104,7 +104,7 @@ func GetOptions(c *gin.Context) {
 	optionValues := make(map[string]string)
 	common.OptionMapRWMutex.Lock()
 	for k, v := range common.OptionMap {
-		if k == "theme.frontend" || k == "billing_setting.billing_mode" || k == "billing_setting.billing_expr" || k == "ResendKeyConfigured" {
+		if k == "theme.frontend" || k == "billing_setting.billing_mode" || k == "billing_setting.billing_expr" || k == "ResendKeyConfigured" || k == setting.PromptAuditConfigOptionKey {
 			continue
 		}
 		value := common.Interface2String(v)
@@ -225,6 +225,10 @@ func UpdateOption(c *gin.Context) {
 			return
 		}
 	default:
+		if option.Key == setting.PromptAuditConfigOptionKey {
+			common.ApiErrorMsg(c, "提示词审计配置不允许通过通用设置接口修改")
+			return
+		}
 		if isPaymentComplianceOptionKey(option.Key) {
 			common.ApiErrorT(c, "Compliance confirmation fields cannot be changed through the general settings API")
 			return
@@ -338,6 +342,80 @@ func UpdateOption(c *gin.Context) {
 		err = setting.CheckModelRequestRateLimitGroup(option.Value.(string))
 		if err != nil {
 			common.ApiError(c, err)
+			return
+		}
+	case "PromptAuditEnabled":
+		if option.Value == "true" {
+			err = setting.ValidatePromptAuditConfig(setting.GetPromptAuditConfig())
+		}
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": err.Error(),
+			})
+			return
+		}
+	case "PromptAuditBaseURL":
+		err = setting.ValidatePromptAuditBaseURL(option.Value.(string))
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": err.Error(),
+			})
+			return
+		}
+	case "PromptAuditModel":
+		err = setting.ValidatePromptAuditModel(option.Value.(string))
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": err.Error(),
+			})
+			return
+		}
+	case "PromptAuditTimeoutMS":
+		_, err = setting.ParsePromptAuditTimeoutMS(option.Value.(string))
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": err.Error(),
+			})
+			return
+		}
+	case "PromptAuditInputLimit":
+		_, err = setting.ParsePromptAuditInputLimit(option.Value.(string))
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": err.Error(),
+			})
+			return
+		}
+	case "PromptAuditMaxConcurrency":
+		_, err = setting.ParsePromptAuditMaxConcurrency(option.Value.(string))
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": err.Error(),
+			})
+			return
+		}
+	case "PromptAuditScanners":
+		_, err = setting.ParsePromptAuditScanners(option.Value.(string))
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": err.Error(),
+			})
+			return
+		}
+	case "PromptAuditGroupPolicies":
+		_, err = setting.ParsePromptAuditGroupPolicies(option.Value.(string))
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": err.Error(),
+			})
 			return
 		}
 	case "checkin_setting.tiers":
