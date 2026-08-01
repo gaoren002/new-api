@@ -1,6 +1,8 @@
 package model
 
 import (
+	"encoding/json"
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -15,7 +17,10 @@ import (
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/setting/system_setting"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
+
+var ErrOptionVersionConflict = errors.New("option version conflict")
 
 type Option struct {
 	Key   string `json:"key" gorm:"primaryKey"`
@@ -184,6 +189,18 @@ func InitOptionMap() {
 	common.OptionMap["CheckSensitiveOnPromptEnabled"] = strconv.FormatBool(setting.CheckSensitiveOnPromptEnabled)
 	common.OptionMap["StopOnSensitiveEnabled"] = strconv.FormatBool(setting.StopOnSensitiveEnabled)
 	common.OptionMap["SensitiveWords"] = setting.SensitiveWordsToString()
+	common.OptionMap["PromptAuditEnabled"] = strconv.FormatBool(setting.PromptAuditEnabled)
+	common.OptionMap["PromptAuditBaseURL"] = setting.PromptAuditBaseURL
+	common.OptionMap["PromptAuditModel"] = setting.PromptAuditModel
+	common.OptionMap["PromptAuditAPIKey"] = setting.PromptAuditAPIKey
+	common.OptionMap["PromptAuditKeyConfigured"] = strconv.FormatBool(strings.TrimSpace(setting.PromptAuditAPIKey) != "")
+	common.OptionMap["PromptAuditTimeoutMS"] = strconv.Itoa(setting.PromptAuditTimeoutMS)
+	common.OptionMap["PromptAuditFailClosed"] = strconv.FormatBool(setting.PromptAuditFailClosed)
+	common.OptionMap["PromptAuditInputLimit"] = strconv.Itoa(setting.PromptAuditInputLimit)
+	common.OptionMap["PromptAuditMaxConcurrency"] = strconv.Itoa(setting.PromptAuditMaxConcurrency)
+	common.OptionMap["PromptAuditScanners"] = setting.PromptAuditScanners
+	common.OptionMap["PromptAuditGroupPolicies"] = setting.PromptAuditGroupPolicies
+	common.OptionMap[setting.PromptAuditConfigOptionKey] = setting.PromptAuditConfigJSON
 	common.OptionMap["StreamCacheQueueLength"] = strconv.Itoa(setting.StreamCacheQueueLength)
 	common.OptionMap["AutomaticDisableKeywords"] = operation_setting.AutomaticDisableKeywordsToString()
 	common.OptionMap["AutomaticDisableStatusCodes"] = operation_setting.AutomaticDisableStatusCodesToString()
@@ -250,6 +267,47 @@ func UpdateOption(key string, value string) error {
 	return updateOptionMap(key, value)
 }
 
+func ReloadOption(key string) error {
+	var option Option
+	if err := DB.First(&option, commonKeyCol+" = ?", key).Error; err != nil {
+		return err
+	}
+	return updateOptionMap(option.Key, option.Value)
+}
+
+func UpdateJSONOptionCAS(key string, expectedVersion int64, value string) error {
+	if expectedVersion < 1 {
+		return ErrOptionVersionConflict
+	}
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		option := Option{Key: key}
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).FirstOrCreate(&option, Option{Key: key}).Error; err != nil {
+			return err
+		}
+		currentVersion := int64(1)
+		if strings.TrimSpace(option.Value) != "" {
+			var current struct {
+				ConfigVersion int64 `json:"config_version"`
+			}
+			if err := json.Unmarshal([]byte(option.Value), &current); err != nil {
+				return err
+			}
+			if current.ConfigVersion > 0 {
+				currentVersion = current.ConfigVersion
+			}
+		}
+		if currentVersion != expectedVersion {
+			return ErrOptionVersionConflict
+		}
+		option.Value = value
+		return tx.Save(&option).Error
+	})
+	if err != nil {
+		return err
+	}
+	return updateOptionMap(key, value)
+}
+
 // UpdateOptionsBulk persists multiple key/value pairs in a single database
 // transaction, then dispatches them through updateOptionMap in one pass. If
 // any DB write fails the whole transaction rolls back and no in-memory state
@@ -297,6 +355,9 @@ func updateOptionMap(key string, value string) (err error) {
 	}
 	common.OptionMapRWMutex.Lock()
 	defer common.OptionMapRWMutex.Unlock()
+	if common.OptionMap == nil {
+		common.OptionMap = make(map[string]string)
+	}
 	common.OptionMap[key] = value
 
 	// 检查是否是模型配置 - 使用更规范的方式处理
@@ -318,7 +379,7 @@ func updateOptionMap(key string, value string) (err error) {
 			common.ImageDownloadPermission = intValue
 		}
 	}
-	if strings.HasSuffix(key, "Enabled") || key == "DefaultCollapseSidebar" || key == "DefaultUseAutoGroup" || key == "SMTPForceAuthLogin" || key == "SMTPInsecureSkipVerify" {
+	if strings.HasSuffix(key, "Enabled") || key == "DefaultCollapseSidebar" || key == "DefaultUseAutoGroup" || key == "SMTPForceAuthLogin" || key == "SMTPInsecureSkipVerify" || key == "PromptAuditFailClosed" {
 		boolValue := value == "true"
 		switch key {
 		case "PasswordRegisterEnabled":
@@ -399,6 +460,10 @@ func updateOptionMap(key string, value string) (err error) {
 			setting.ModelRequestRateLimitEnabled = boolValue
 		case "StopOnSensitiveEnabled":
 			setting.StopOnSensitiveEnabled = boolValue
+		case "PromptAuditEnabled":
+			setting.PromptAuditEnabled = boolValue
+		case "PromptAuditFailClosed":
+			setting.PromptAuditFailClosed = boolValue
 		case "SMTPSSLEnabled":
 			common.SMTPSSLEnabled = boolValue
 		case "SMTPStartTLSEnabled":
@@ -618,6 +683,41 @@ func updateOptionMap(key string, value string) (err error) {
 		common.QuotaPerUnit, _ = strconv.ParseFloat(value, 64)
 	case "SensitiveWords":
 		setting.SensitiveWordsFromString(value)
+	case "PromptAuditBaseURL":
+		setting.PromptAuditBaseURL = value
+	case "PromptAuditModel":
+		setting.PromptAuditModel = value
+	case "PromptAuditAPIKey":
+		setting.PromptAuditAPIKey = value
+		common.OptionMap["PromptAuditKeyConfigured"] = strconv.FormatBool(strings.TrimSpace(value) != "")
+	case "PromptAuditTimeoutMS":
+		setting.PromptAuditTimeoutMS, err = setting.ParsePromptAuditTimeoutMS(value)
+	case "PromptAuditInputLimit":
+		setting.PromptAuditInputLimit, err = setting.ParsePromptAuditInputLimit(value)
+	case "PromptAuditMaxConcurrency":
+		setting.PromptAuditMaxConcurrency, err = setting.ParsePromptAuditMaxConcurrency(value)
+	case "PromptAuditScanners":
+		var scanners []string
+		scanners, err = setting.ParsePromptAuditScanners(value)
+		if err == nil {
+			setting.PromptAuditScanners = strings.Join(scanners, ",")
+		}
+	case "PromptAuditGroupPolicies":
+		_, err = setting.ParsePromptAuditGroupPolicies(value)
+		if err == nil {
+			setting.PromptAuditGroupPolicies = value
+		}
+	case setting.PromptAuditConfigOptionKey:
+		if strings.TrimSpace(value) == "" {
+			setting.PromptAuditConfigJSON = ""
+			break
+		}
+		previous := setting.PromptAuditConfigJSON
+		setting.PromptAuditConfigJSON = value
+		_, err = setting.GetPromptAuditStorageConfig()
+		if err != nil {
+			setting.PromptAuditConfigJSON = previous
+		}
 	case "AutomaticDisableKeywords":
 		operation_setting.AutomaticDisableKeywordsFromString(value)
 	case "AutomaticDisableStatusCodes":
