@@ -72,8 +72,7 @@ const OPERATIONS_SECTIONS = [
           maxQuota: settings['checkin_setting.max_quota'],
           tiered: settings['checkin_setting.tiered'] ?? false,
           tiers: settings['checkin_setting.tiers'] ?? '[]',
-          fallbackMode:
-            settings['checkin_setting.fallback_mode'] ?? 'legacy',
+          fallbackMode: settings['checkin_setting.fallback_mode'] ?? 'legacy',
           quotaPerUnit: settings.QuotaPerUnit ?? 500000,
           usdExchangeRate: settings.USDExchangeRate ?? 7,
           quotaDisplayType:

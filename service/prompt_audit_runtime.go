@@ -213,7 +213,11 @@ func EvaluatePromptAuditRequest(ctx context.Context, config setting.PromptAuditC
 	}
 	recordErr := snapshotErr
 	if recordErr == nil {
-		recordErr = model.RecordBlockingPromptAuditResult(job, promptAuditEventFromSnapshot(snapshot, decision, config.ConfigVersion, nil), config.StorePassEvents)
+		recordErr = model.RecordBlockingPromptAuditResult(
+			job,
+			promptAuditEventFromSnapshot(snapshot, decision, config.ConfigVersion, nil),
+			shouldStorePromptAuditEvent(decision, config),
+		)
 	}
 	if recordErr != nil {
 		promptAuditRuntime.metrics.recordFailed.Add(1)
@@ -504,7 +508,7 @@ func promptAuditProcessJob(parent context.Context, job *model.PromptAuditJob) {
 		return
 	}
 	event := promptAuditEventFromSnapshot(snapshot, decision, job.ConfigVersion, &job.Id)
-	store := decision != nil && (decision.Decision != "pass" || config.StorePassEvents)
+	store := shouldStorePromptAuditEvent(decision, config)
 	if err := model.CompletePromptAuditJob(job, event, store); err != nil {
 		promptAuditRuntime.metrics.recordFailed.Add(1)
 		_ = model.RetryPromptAuditJob(job, "result_record_failed", "prompt audit result record failed", true)
@@ -521,6 +525,16 @@ func promptAuditProcessJob(parent context.Context, job *model.PromptAuditJob) {
 		decisionName, latencyMS = decision.Decision, decision.LatencyMS
 	}
 	logPromptAudit(ctx, false, "prompt_audit_job_completed", map[string]any{"job_id": job.Id, "request_id": job.RequestId, "decision": decisionName, "latency_ms": latencyMS, "status": "completed"})
+}
+
+func shouldStorePromptAuditEvent(decision *PromptAuditDecision, config setting.PromptAuditConfig) bool {
+	if decision == nil {
+		return false
+	}
+	if config.StoreBlockedEventsOnly {
+		return decision.Blocked
+	}
+	return decision.Decision != "pass" || config.StorePassEvents
 }
 
 func promptAuditReclaimer(ctx context.Context) {

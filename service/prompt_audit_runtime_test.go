@@ -99,6 +99,20 @@ func TestPromptAuditRuntimeEnabledFollowsGlobalAndGroupModes(t *testing.T) {
 	require.False(t, promptAuditRuntimeEnabled(storage))
 }
 
+func TestShouldStorePromptAuditEvent(t *testing.T) {
+	pass := &PromptAuditDecision{Decision: "pass"}
+	flag := &PromptAuditDecision{Decision: "flag"}
+	blocked := &PromptAuditDecision{Blocked: true, Decision: "critical"}
+
+	require.False(t, shouldStorePromptAuditEvent(nil, setting.PromptAuditConfig{}))
+	require.False(t, shouldStorePromptAuditEvent(pass, setting.PromptAuditConfig{}))
+	require.True(t, shouldStorePromptAuditEvent(pass, setting.PromptAuditConfig{StorePassEvents: true}))
+	require.True(t, shouldStorePromptAuditEvent(flag, setting.PromptAuditConfig{}))
+	require.False(t, shouldStorePromptAuditEvent(flag, setting.PromptAuditConfig{StoreBlockedEventsOnly: true}))
+	require.True(t, shouldStorePromptAuditEvent(blocked, setting.PromptAuditConfig{StoreBlockedEventsOnly: true}))
+	require.False(t, shouldStorePromptAuditEvent(pass, setting.PromptAuditConfig{StorePassEvents: true, StoreBlockedEventsOnly: true}))
+}
+
 func TestPromptAuditMetricsExposeLatencyPercentiles(t *testing.T) {
 	metrics := &promptAuditMetrics{}
 	for _, latency := range []int64{10, 20, 30, 40, 100} {

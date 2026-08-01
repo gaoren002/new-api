@@ -416,10 +416,25 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 
 	adminRejectReason := common.GetContextKeyString(ctx, constant.ContextKeyAdminRejectReason)
 	summary := calculateTextQuotaSummary(ctx, relayInfo, billingUsage)
+	cyberWithoutUsage := false
+	if mark := GetCyberPolicyMark(ctx); mark != nil {
+		noteQuotaClamp(relayInfo, mark.QuotaClamp)
+		cyberWithoutUsage = originUsage == nil || (billingUsage.PromptTokens <= 0 && billingUsage.CompletionTokens <= 0)
+		if cyberWithoutUsage {
+			// Policy failures without measured upstream usage are free, even
+			// when an expression has a base fee or partial tool events arrived.
+			summary.Quota = 0
+			summary.PromptTokens = 0
+			summary.CompletionTokens = 0
+			summary.TotalTokens = 0
+			summary.ToolCallSurchargeQuota = decimal.Zero
+			summary.ToolSurchargeItems = nil
+		}
+	}
 
 	var tieredResult *billingexpr.TieredResult
 	tieredBillingApplied := false
-	if originUsage != nil {
+	if originUsage != nil && !cyberWithoutUsage {
 		var tieredUsedVars map[string]bool
 		if snap := relayInfo.TieredBillingSnapshot; snap != nil {
 			tieredUsedVars = billingexpr.UsedVars(snap.ExprString)

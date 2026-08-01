@@ -74,6 +74,7 @@ export function getChannelTypeIcon(type: number): string {
     16: 'Zhipu', // Zhipu
     26: 'Zhipu', // Zhipu V4
     17: 'Qwen', // Ali
+    62: 'Qwen', // Qwen3Guard
     18: 'Spark', // Xunfei
     23: 'Hunyuan', // Tencent
     19: 'Ai360', // 360

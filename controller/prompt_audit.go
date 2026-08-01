@@ -45,6 +45,7 @@ type promptAuditPublicConfig struct {
 	Mode                    setting.PromptAuditMode                   `json:"mode"`
 	BlockingLatestTurnOnly  bool                                      `json:"blocking_latest_turn_only"`
 	StorePassEvents         bool                                      `json:"store_pass_events"`
+	StoreBlockedEventsOnly  bool                                      `json:"store_blocked_events_only"`
 	Strategy                string                                    `json:"strategy"`
 	WorkerCount             int                                       `json:"worker_count"`
 	QueueCapacity           int                                       `json:"queue_capacity"`
@@ -56,6 +57,7 @@ type promptAuditPublicConfig struct {
 	UpdatedAt               time.Time                                 `json:"updated_at"`
 	UpdatedBy               int                                       `json:"updated_by"`
 	EncryptionKeyConfigured bool                                      `json:"encryption_key_configured"`
+	ContentModerationActive bool                                      `json:"content_moderation_active"`
 }
 
 type promptAuditUpdateEndpoint struct {
@@ -76,6 +78,7 @@ type promptAuditUpdateConfig struct {
 	Mode                   setting.PromptAuditMode                   `json:"mode"`
 	BlockingLatestTurnOnly bool                                      `json:"blocking_latest_turn_only"`
 	StorePassEvents        bool                                      `json:"store_pass_events"`
+	StoreBlockedEventsOnly bool                                      `json:"store_blocked_events_only"`
 	Strategy               string                                    `json:"strategy"`
 	WorkerCount            int                                       `json:"worker_count"`
 	QueueCapacity          int                                       `json:"queue_capacity"`
@@ -115,7 +118,8 @@ func UpdatePromptAuditConfig(c *gin.Context) {
 	}
 	next := setting.PromptAuditStorageConfig{
 		Mode: request.Mode, BlockingLatestTurnOnly: request.BlockingLatestTurnOnly,
-		StorePassEvents: request.StorePassEvents, Strategy: strings.TrimSpace(request.Strategy),
+		StorePassEvents: request.StorePassEvents, StoreBlockedEventsOnly: request.StoreBlockedEventsOnly,
+		Strategy:    strings.TrimSpace(request.Strategy),
 		WorkerCount: request.WorkerCount, QueueCapacity: request.QueueCapacity,
 		Scanners: append([]string(nil), request.Scanners...), FailClosed: true,
 		GroupPolicies: request.GroupPolicies, ConfigVersion: current.ConfigVersion + 1,
@@ -163,13 +167,16 @@ func UpdatePromptAuditConfig(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "failed to encode prompt audit config"})
 		return
 	}
-	if err := model.UpdateJSONOptionCAS(setting.PromptAuditConfigOptionKey, request.ExpectedConfigVersion, string(raw)); err != nil {
+	if err := model.UpdateSecurityAuditOptionCAS(setting.PromptAuditConfigOptionKey, request.ExpectedConfigVersion, string(raw)); err != nil {
 		status := http.StatusInternalServerError
 		code := "prompt_audit_config_save_failed"
+		message := "failed to save prompt audit config"
 		if errors.Is(err, model.ErrOptionVersionConflict) {
-			status, code = http.StatusConflict, "prompt_audit_config_conflict"
+			status, code, message = http.StatusConflict, "prompt_audit_config_conflict", "prompt audit config was updated by another administrator"
+		} else if errors.Is(err, model.ErrSecurityAuditEngineConflict) {
+			status, code, message = http.StatusConflict, "security_audit_engine_conflict", "content moderation and prompt audit cannot be enabled at the same time"
 		}
-		c.JSON(status, gin.H{"success": false, "code": code, "message": "failed to save prompt audit config"})
+		c.JSON(status, gin.H{"success": false, "code": code, "message": message})
 		return
 	}
 	service.PublishPromptAuditConfigInvalidation(c.Request.Context(), next.ConfigVersion)
@@ -183,12 +190,14 @@ func UpdatePromptAuditConfig(c *gin.Context) {
 func promptAuditPublicConfigFromStorage(storage setting.PromptAuditStorageConfig) promptAuditPublicConfig {
 	public := promptAuditPublicConfig{
 		Mode: storage.Mode, BlockingLatestTurnOnly: storage.BlockingLatestTurnOnly,
-		StorePassEvents: storage.StorePassEvents, Strategy: storage.Strategy,
+		StorePassEvents: storage.StorePassEvents, StoreBlockedEventsOnly: storage.StoreBlockedEventsOnly,
+		Strategy:    storage.Strategy,
 		WorkerCount: storage.WorkerCount, QueueCapacity: storage.QueueCapacity,
 		Scanners: append([]string(nil), storage.Scanners...), FailClosed: storage.FailClosed,
 		GroupPolicies: storage.GroupPolicies, ConfigVersion: storage.ConfigVersion,
 		UpdatedAt: storage.UpdatedAt, UpdatedBy: storage.UpdatedBy,
 		EncryptionKeyConfigured: setting.PromptAuditEncryptionKeyConfigured(),
+		ContentModerationActive: setting.ContentModerationJSONActive(setting.ContentModerationConfigJSON),
 	}
 	for _, endpoint := range storage.Endpoints {
 		status := "missing"
@@ -401,6 +410,76 @@ func promptAuditQueryInt(c *gin.Context, key string, fallback int) int {
 
 func evaluatePromptAudit(c *gin.Context, relayFormat types.RelayFormat, group string) *types.NewAPIError {
 	return evaluatePromptAuditWithRelayInfo(c, relayFormat, group, nil)
+}
+
+func evaluateSecurityAuditWithRelayInfo(c *gin.Context, relayFormat types.RelayFormat, group string, relayInfo *relaycommon.RelayInfo) *types.NewAPIError {
+	contentConfig, err := setting.GetContentModerationStorageConfig()
+	if err == nil && setting.ContentModerationStorageActive(contentConfig) {
+		return evaluateContentModerationWithRelayInfo(c, relayFormat, group, relayInfo)
+	}
+	return evaluatePromptAuditWithRelayInfo(c, relayFormat, group, relayInfo)
+}
+
+func evaluateSecurityAuditPayload(c *gin.Context, relayFormat types.RelayFormat, group string, relayInfo *relaycommon.RelayInfo, body []byte, stage string) *types.NewAPIError {
+	contentConfig, err := setting.GetContentModerationStorageConfig()
+	if err == nil && setting.ContentModerationStorageActive(contentConfig) {
+		return evaluateContentModerationPayload(c, relayFormat, group, relayInfo, body)
+	}
+	return evaluatePromptAuditPayload(c, relayFormat, group, relayInfo, body, stage)
+}
+
+func evaluateContentModerationWithRelayInfo(c *gin.Context, relayFormat types.RelayFormat, group string, relayInfo *relaycommon.RelayInfo) *types.NewAPIError {
+	bodyStorage, err := common.GetBodyStorage(c)
+	if err != nil {
+		status := http.StatusBadRequest
+		if common.IsRequestBodyTooLargeError(err) || errors.Is(err, common.ErrRequestBodyTooLarge) {
+			status = http.StatusRequestEntityTooLarge
+		}
+		return types.NewErrorWithStatusCode(err, types.ErrorCodeReadRequestBodyFailed, status, types.ErrOptionWithSkipRetry())
+	}
+	body, err := bodyStorage.Bytes()
+	if err != nil {
+		return types.NewErrorWithStatusCode(err, types.ErrorCodeReadRequestBodyFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+	}
+	body, err = contentModerationJSONBody(c, body)
+	if err != nil {
+		return types.NewErrorWithStatusCode(err, types.ErrorCodeReadRequestBodyFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+	}
+	if len(body) == 0 {
+		return nil
+	}
+	return evaluateContentModerationPayload(c, relayFormat, group, relayInfo, body)
+}
+
+func evaluateContentModerationPayload(c *gin.Context, relayFormat types.RelayFormat, group string, relayInfo *relaycommon.RelayInfo, body []byte) *types.NewAPIError {
+	protocol, supported := promptAuditProtocol(relayFormat)
+	if !supported || !json.Valid(body) {
+		return nil
+	}
+	input := service.ContentModerationCheckInput{
+		RequestID: c.GetString(common.RequestIdKey), UserID: common.GetContextKeyInt(c, constant.ContextKeyUserId),
+		Username: common.GetContextKeyString(c, constant.ContextKeyUserName), UserEmail: common.GetContextKeyString(c, constant.ContextKeyUserEmail),
+		TokenID: common.GetContextKeyInt(c, constant.ContextKeyTokenId), TokenName: c.GetString("token_name"),
+		Group: group, Endpoint: c.Request.URL.Path, Provider: c.GetString("channel_name"), Protocol: protocol,
+		Body: append([]byte(nil), body...),
+	}
+	if relayInfo != nil {
+		input.Model = relayInfo.OriginModelName
+	}
+	decision, err := service.CheckContentModeration(c.Request.Context(), input)
+	if err != nil {
+		logger.LogWarn(c, "content moderation configuration is unavailable; request allowed")
+		return nil
+	}
+	if decision != nil && decision.Blocked {
+		logger.LogWarn(c, "content moderation blocked request")
+		status := decision.StatusCode
+		if status < 400 || status > 599 {
+			status = http.StatusForbidden
+		}
+		return types.NewErrorWithStatusCode(errors.New(decision.Message), types.ErrorCodeContentModerationBlocked, status, types.ErrOptionWithSkipRetry())
+	}
+	return nil
 }
 
 func evaluatePromptAuditWithRelayInfo(c *gin.Context, relayFormat types.RelayFormat, group string, relayInfo *relaycommon.RelayInfo) *types.NewAPIError {
