@@ -20,6 +20,60 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func sendCyberPolicyCompatStreamError(c *gin.Context, info *relaycommon.RelayInfo, message string) error {
+	message = strings.TrimSpace(message)
+	if message == "" {
+		message = "Request blocked by upstream cyber-security policy"
+	}
+	switch info.RelayFormat {
+	case types.RelayFormatClaude:
+		return helper.ClaudeData(c, dto.ClaudeResponse{
+			Type: "error",
+			Error: types.ClaudeError{
+				Type:    "permission_error",
+				Message: message,
+			},
+		})
+	case types.RelayFormatGemini:
+		payload, err := common.Marshal(gin.H{
+			"error": gin.H{
+				"code":    http.StatusBadRequest,
+				"message": message,
+				"status":  "PERMISSION_DENIED",
+			},
+		})
+		if err != nil {
+			return err
+		}
+		c.Render(-1, common.CustomEvent{Data: "data: " + string(payload)})
+		return helper.FlushWriter(c)
+	default:
+		if err := helper.ObjectData(c, gin.H{
+			"error": gin.H{
+				"type":    "invalid_request_error",
+				"code":    types.ErrorCodeCyberPolicy,
+				"message": message,
+			},
+		}); err != nil {
+			return err
+		}
+		helper.Done(c)
+		return nil
+	}
+}
+
+func cyberPolicyTextUsage(payload []byte) *dto.Usage {
+	inputTokens, outputTokens := service.ExtractCyberPolicyUsage(payload)
+	return &dto.Usage{
+		PromptTokens:     inputTokens,
+		CompletionTokens: outputTokens,
+		TotalTokens:      inputTokens + outputTokens,
+		InputTokens:      inputTokens,
+		OutputTokens:     outputTokens,
+		UsageSource:      "upstream",
+	}
+}
+
 func OaiResponsesToChatHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.NewAPIError) {
 	if resp == nil || resp.Body == nil {
 		return nil, types.NewOpenAIError(fmt.Errorf("invalid response"), types.ErrorCodeBadResponse, http.StatusInternalServerError)
@@ -101,6 +155,10 @@ func OaiResponsesToChatBufferedStreamHandler(c *gin.Context, info *relaycommon.R
 				break
 			}
 			continue
+		}
+		if cyberPolicy, cyberMessage := service.DetectCyberPolicyPayload(common.StringToByteSlice(data)); cyberPolicy {
+			service.MarkCyberPolicy(c, service.CyberPolicyMark{Message: cyberMessage, Body: data, UpstreamStatus: http.StatusOK})
+			return nil, types.WithOpenAIError(types.OpenAIError{Message: cyberMessage, Type: "upstream_error", Code: types.ErrorCodeCyberPolicy}, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 		}
 
 		var streamResp dto.ResponsesStreamResponse
@@ -203,6 +261,7 @@ func OaiResponsesToChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 		return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponse, http.StatusInternalServerError)
 	}
 	streamErr := (*types.NewAPIError)(nil)
+	var cyberUsage *dto.Usage
 
 	if info.RelayFormat == types.RelayFormatClaude && info.ClaudeConvertInfo == nil {
 		info.ClaudeConvertInfo = &relaycommon.ClaudeConvertInfo{LastMessagesType: relaycommon.LastMessageTypeNone}
@@ -272,6 +331,13 @@ func OaiResponsesToChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 			sr.Stop(streamErr)
 			return
 		}
+		if cyberPolicy, cyberMessage := service.DetectCyberPolicyPayload(common.StringToByteSlice(data)); cyberPolicy {
+			service.MarkCyberPolicy(c, service.CyberPolicyMark{Message: cyberMessage, Body: data, UpstreamStatus: http.StatusOK})
+			_ = sendCyberPolicyCompatStreamError(c, info, cyberMessage)
+			cyberUsage = cyberPolicyTextUsage(common.StringToByteSlice(data))
+			sr.Done()
+			return
+		}
 
 		var streamResp dto.ResponsesStreamResponse
 		if err := common.UnmarshalJsonStr(data, &streamResp); err != nil {
@@ -307,6 +373,9 @@ func OaiResponsesToChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 		}
 	})
 
+	if cyberUsage != nil {
+		return cyberUsage, nil
+	}
 	if streamErr != nil {
 		return nil, streamErr
 	}

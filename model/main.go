@@ -294,10 +294,14 @@ func migrateDB() error {
 		&PromptAuditJob{},
 		&PromptAuditEvent{},
 		&PromptAuditQueueLock{},
+		&ContentModerationLog{},
 		&CasbinRule{},
 		&AuthzRole{},
 	)
 	if err != nil {
+		return err
+	}
+	if err := DB.FirstOrCreate(&Option{Key: SecurityAuditConfigLockOptionKey}, Option{Key: SecurityAuditConfigLockOptionKey, Value: ""}).Error; err != nil {
 		return err
 	}
 	if err := InitializeUserAuthVersions(); err != nil {
@@ -361,6 +365,7 @@ func migrateDBFast() error {
 		{&PromptAuditJob{}, "PromptAuditJob"},
 		{&PromptAuditEvent{}, "PromptAuditEvent"},
 		{&PromptAuditQueueLock{}, "PromptAuditQueueLock"},
+		{&ContentModerationLog{}, "ContentModerationLog"},
 	}
 	// 动态计算migration数量，确保errChan缓冲区足够大
 	errChan := make(chan error, len(migrations))
@@ -384,6 +389,9 @@ func migrateDBFast() error {
 		if err != nil {
 			return err
 		}
+	}
+	if err := DB.FirstOrCreate(&Option{Key: SecurityAuditConfigLockOptionKey}, Option{Key: SecurityAuditConfigLockOptionKey, Value: ""}).Error; err != nil {
+		return err
 	}
 	if err := InitializeUserAuthVersions(); err != nil {
 		return err

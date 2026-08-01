@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -125,14 +126,56 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		newAPIError = types.NewError(err, types.ErrorCodeGenRelayInfoFailed)
 		return
 	}
+	contentModerationConfig, contentModerationConfigErr := setting.GetContentModerationStorageConfig()
+	cyberSessionKey := ""
+	if contentModerationConfigErr == nil && setting.ContentModerationCyberPolicyActive(contentModerationConfig) {
+		if bodyStorage, bodyErr := common.GetBodyStorage(c); bodyErr == nil {
+			if body, bytesErr := bodyStorage.Bytes(); bytesErr == nil {
+				cyberSessionKey = service.CyberSessionBlockKey(common.GetContextKeyInt(c, constant.ContextKeyTokenId), c, body)
+			}
+		}
+		if service.IsCyberSessionBlocked(c.Request.Context(), contentModerationConfig, cyberSessionKey) {
+			newAPIError = types.NewOpenAIError(
+				errors.New("this session was blocked by the upstream cyber policy"),
+				types.ErrorCodeCyberPolicy,
+				http.StatusForbidden,
+				types.ErrOptionWithSkipRetry(),
+			)
+			return
+		}
+		defer func() {
+			mark := service.GetCyberPolicyMark(c)
+			if mark == nil {
+				return
+			}
+			service.MarkCyberSessionBlocked(context.Background(), contentModerationConfig, cyberSessionKey)
+			input := service.ContentModerationCheckInput{
+				RequestID: requestId,
+				UserID:    common.GetContextKeyInt(c, constant.ContextKeyUserId),
+				Username:  common.GetContextKeyString(c, constant.ContextKeyUserName),
+				UserEmail: common.GetContextKeyString(c, constant.ContextKeyUserEmail),
+				TokenID:   common.GetContextKeyInt(c, constant.ContextKeyTokenId),
+				TokenName: c.GetString("token_name"),
+				Group:     relayInfo.UsingGroup,
+				Endpoint:  c.Request.URL.Path,
+				Provider:  c.GetString("channel_name"),
+				Model:     relayInfo.OriginModelName,
+				Protocol:  string(relayFormat),
+			}
+			markCopy := *mark
+			gopool.Go(func() {
+				service.RecordCyberPolicyEvent(context.Background(), input, markCopy)
+			})
+		}()
+	}
 	auditGroup := promptAuditGroup(c, relayInfo.UsingGroup)
 	if relayFormat == types.RelayFormatOpenAIRealtime {
 		auditContext := c.Copy()
 		relayInfo.RealtimePromptAudit = func(body []byte) *types.NewAPIError {
-			return evaluatePromptAuditPayload(auditContext, relayFormat, auditGroup, relayInfo, body, "realtime_frame")
+			return evaluateSecurityAuditPayload(auditContext, relayFormat, auditGroup, relayInfo, body, "realtime_frame")
 		}
 	} else {
-		if newAPIError = evaluatePromptAuditWithRelayInfo(c, relayFormat, auditGroup, relayInfo); newAPIError != nil {
+		if newAPIError = evaluateSecurityAuditWithRelayInfo(c, relayFormat, auditGroup, relayInfo); newAPIError != nil {
 			return
 		}
 	}
@@ -238,6 +281,12 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		default:
 			newAPIError = relayHandler(c, relayInfo)
 		}
+		if service.GetCyberPolicyMark(c) != nil && newAPIError == nil {
+			if relayInfo.Billing != nil {
+				relayInfo.Billing.Refund(c)
+			}
+			return
+		}
 
 		if newAPIError == nil {
 			relayInfo.LastError = nil
@@ -246,6 +295,20 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 		newAPIError = service.NormalizeViolationFeeError(newAPIError)
 		relayInfo.LastError = newAPIError
+		if newAPIError.GetErrorCode() == types.ErrorCodeCyberPolicy {
+			service.MarkCyberPolicy(c, service.CyberPolicyMark{Message: newAPIError.Error(), UpstreamStatus: newAPIError.StatusCode})
+			mark := service.GetCyberPolicyMark(c)
+			usage := &dto.Usage{UsageSource: "upstream"}
+			if mark != nil {
+				usage.PromptTokens = mark.UpstreamInputTokens
+				usage.CompletionTokens = mark.UpstreamOutputTokens
+				usage.TotalTokens = mark.UpstreamInputTokens + mark.UpstreamOutputTokens
+				usage.InputTokens = mark.UpstreamInputTokens
+				usage.OutputTokens = mark.UpstreamOutputTokens
+			}
+			service.PostTextConsumeQuota(c, relayInfo, usage, []string{service.ContentModerationActionCyberPolicy})
+			break
+		}
 
 		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
 
@@ -429,7 +492,7 @@ func RelayMidjourney(c *gin.Context) {
 		})
 		return
 	}
-	if auditErr := evaluatePromptAuditWithRelayInfo(c, types.RelayFormatMjProxy, promptAuditGroup(c, relayInfo.UsingGroup), relayInfo); auditErr != nil {
+	if auditErr := evaluateSecurityAuditWithRelayInfo(c, types.RelayFormatMjProxy, promptAuditGroup(c, relayInfo.UsingGroup), relayInfo); auditErr != nil {
 		c.JSON(auditErr.StatusCode, gin.H{
 			"description": auditErr.Err.Error(),
 			"type":        auditErr.GetErrorCode(),
@@ -518,7 +581,7 @@ func RelayTask(c *gin.Context) {
 		})
 		return
 	}
-	if auditErr := evaluatePromptAuditWithRelayInfo(c, types.RelayFormatTask, promptAuditGroup(c, relayInfo.UsingGroup), relayInfo); auditErr != nil {
+	if auditErr := evaluateSecurityAuditWithRelayInfo(c, types.RelayFormatTask, promptAuditGroup(c, relayInfo.UsingGroup), relayInfo); auditErr != nil {
 		respondTaskError(c, service.TaskErrorWrapperLocal(auditErr.Err, string(auditErr.GetErrorCode()), auditErr.StatusCode))
 		return
 	}

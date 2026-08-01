@@ -100,7 +100,7 @@ func GetOptions(c *gin.Context) {
 	optionValues := make(map[string]string)
 	common.OptionMapRWMutex.Lock()
 	for k, v := range common.OptionMap {
-		if k == "theme.frontend" || k == setting.PromptAuditConfigOptionKey {
+		if k == "theme.frontend" || k == setting.PromptAuditConfigOptionKey || k == setting.ContentModerationConfigOptionKey || k == model.SecurityAuditConfigLockOptionKey {
 			continue
 		}
 		value := common.Interface2String(v)
@@ -167,8 +167,8 @@ func UpdateOption(c *gin.Context) {
 			return
 		}
 	default:
-		if option.Key == setting.PromptAuditConfigOptionKey {
-			common.ApiErrorMsg(c, "提示词审计配置不允许通过通用设置接口修改")
+		if option.Key == setting.PromptAuditConfigOptionKey || option.Key == setting.ContentModerationConfigOptionKey || option.Key == model.SecurityAuditConfigLockOptionKey {
+			common.ApiErrorMsg(c, "安全审核配置不允许通过通用设置接口修改")
 			return
 		}
 		if isPaymentComplianceOptionKey(option.Key) {

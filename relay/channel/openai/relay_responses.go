@@ -86,7 +86,7 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 	imageCommitted := false
 
 	helper.StreamScannerHandler(c, resp, info, func(data string, sr *helper.StreamResult) {
-
+		cyberPolicy, cyberMessage := service.DetectCyberPolicyPayload(common.StringToByteSlice(data))
 		// 检查当前数据是否包含 completed 状态和 usage 信息
 		var streamResponse dto.ResponsesStreamResponse
 		if err := common.UnmarshalJsonStr(data, &streamResponse); err != nil {
@@ -95,6 +95,12 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 			return
 		}
 		sendResponsesStreamData(c, streamResponse, data)
+		if cyberPolicy {
+			service.MarkCyberPolicy(c, service.CyberPolicyMark{Message: cyberMessage, Body: data, UpstreamStatus: http.StatusOK})
+			usage = cyberPolicyTextUsage(common.StringToByteSlice(data))
+			sr.Done()
+			return
+		}
 		switch streamResponse.Type {
 		case "response.completed", "response.done":
 			if streamResponse.Response != nil {
