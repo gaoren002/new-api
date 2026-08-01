@@ -23,6 +23,7 @@ import SettingsGeneral from '../../pages/Setting/Operation/SettingsGeneral';
 import SettingsHeaderNavModules from '../../pages/Setting/Operation/SettingsHeaderNavModules';
 import SettingsSidebarModulesAdmin from '../../pages/Setting/Operation/SettingsSidebarModulesAdmin';
 import SettingsSensitiveWords from '../../pages/Setting/Operation/SettingsSensitiveWords';
+import SettingsPromptAudit from '../../pages/Setting/Operation/SettingsPromptAudit';
 import SettingsLog from '../../pages/Setting/Operation/SettingsLog';
 import SettingsMonitoring from '../../pages/Setting/Operation/SettingsMonitoring';
 import SettingsCreditLimit from '../../pages/Setting/Operation/SettingsCreditLimit';
@@ -60,6 +61,19 @@ const OperationSetting = () => {
     CheckSensitiveEnabled: false,
     CheckSensitiveOnPromptEnabled: false,
     SensitiveWords: '',
+
+    /* Prompt 审核设置 */
+    PromptAuditBaseURL: 'http://qwen3guard:11434',
+    PromptAuditModel: 'sileader/qwen3guard:0.6b',
+    PromptAuditTimeoutMS: 10000,
+    PromptAuditInputLimit: 8000,
+    PromptAuditMaxConcurrency: 4,
+    PromptAuditScanners:
+      'violent,non_violent_illegal_acts,sexual_content_or_sexual_acts,pii,suicide_and_self_harm,unethical_acts,politically_sensitive_topics,copyright_violation,jailbreak',
+    PromptAuditGroupPolicies: '{}',
+    PromptAuditFailClosed: false,
+    PromptAuditEnabled: false,
+    PromptAuditKeyConfigured: false,
 
     /* 日志设置 */
     LogConsumeEnabled: false,
@@ -137,6 +151,9 @@ const OperationSetting = () => {
         {/* 屏蔽词过滤设置 */}
         <Card style={{ marginTop: '10px' }}>
           <SettingsSensitiveWords options={inputs} refresh={onRefresh} />
+        </Card>
+        <Card style={{ marginTop: '10px' }}>
+          <SettingsPromptAudit options={inputs} refresh={onRefresh} />
         </Card>
         {/* 日志设置 */}
         <Card style={{ marginTop: '10px' }}>
