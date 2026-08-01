@@ -197,6 +197,7 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			optionRoute.GET("/", controller.GetOptions)
 			optionRoute.PUT("/", controller.UpdateOption)
+			optionRoute.POST("/prompt_audit/test", controller.TestPromptAudit)
 			optionRoute.POST("/payment_compliance", controller.ConfirmPaymentCompliance)
 			optionRoute.GET("/channel_affinity_cache", controller.GetChannelAffinityCacheStats)
 			optionRoute.DELETE("/channel_affinity_cache", controller.ClearChannelAffinityCache)
@@ -206,6 +207,20 @@ func SetApiRouter(router *gin.Engine) {
 			optionRoute.POST("/waffo-pancake/save", controller.SaveWaffoPancake)
 			optionRoute.POST("/waffo-pancake/subscription-product", controller.CreateWaffoPancakeSubscriptionProduct)
 			optionRoute.GET("/waffo-pancake/subscription-product-options", controller.ListWaffoPancakeSubscriptionProductOptions)
+		}
+		promptAuditRoute := apiRouter.Group("/prompt-audit")
+		promptAuditRoute.Use(middleware.RootAuth())
+		{
+			promptAuditRoute.GET("/config", controller.GetPromptAuditConfig)
+			promptAuditRoute.PUT("/config", controller.UpdatePromptAuditConfig)
+			promptAuditRoute.GET("/runtime", controller.GetPromptAuditRuntime)
+			promptAuditRoute.POST("/probe", controller.ProbePromptAuditNode)
+			promptAuditRoute.GET("/events", controller.ListPromptAuditEvents)
+			promptAuditRoute.GET("/events/delete-preview", controller.PreviewPromptAuditEventDelete)
+			promptAuditRoute.GET("/events/:id", controller.GetPromptAuditEvent)
+			promptAuditRoute.DELETE("/events/:id", controller.DeletePromptAuditEvent)
+			promptAuditRoute.POST("/events/batch-delete", controller.DeletePromptAuditEvents)
+			promptAuditRoute.POST("/events/filter-delete", controller.DeletePromptAuditEventsByFilter)
 		}
 
 		// Custom OAuth provider management (root only)

@@ -127,6 +127,17 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		newAPIError = types.NewError(err, types.ErrorCodeGenRelayInfoFailed)
 		return
 	}
+	auditGroup := promptAuditGroup(c, relayInfo.UsingGroup)
+	if relayFormat == types.RelayFormatOpenAIRealtime {
+		auditContext := c.Copy()
+		relayInfo.RealtimePromptAudit = func(body []byte) *types.NewAPIError {
+			return evaluatePromptAuditPayload(auditContext, relayFormat, auditGroup, relayInfo, body, "realtime_frame")
+		}
+	} else {
+		if newAPIError = evaluatePromptAuditWithRelayInfo(c, relayFormat, auditGroup, relayInfo); newAPIError != nil {
+			return
+		}
+	}
 
 	needSensitiveCheck := setting.ShouldCheckPromptSensitive()
 	needCountToken := constant.CountToken
@@ -441,6 +452,14 @@ func RelayMidjourney(c *gin.Context) {
 		})
 		return
 	}
+	if auditErr := evaluatePromptAuditWithRelayInfo(c, types.RelayFormatMjProxy, promptAuditGroup(c, relayInfo.UsingGroup), relayInfo); auditErr != nil {
+		c.JSON(auditErr.StatusCode, gin.H{
+			"description": auditErr.Err.Error(),
+			"type":        auditErr.GetErrorCode(),
+			"code":        constant.MjRequestError,
+		})
+		return
+	}
 
 	var mjErr *taskdto.MidjourneyResponse
 	switch relayInfo.RelayMode {
@@ -557,6 +576,10 @@ func RelayTask(c *gin.Context) {
 	}
 	if action := c.GetString("task_action"); action != "" {
 		relayInfo.Action = action
+	}
+	if auditErr := evaluatePromptAuditWithRelayInfo(c, types.RelayFormatTask, promptAuditGroup(c, relayInfo.UsingGroup), relayInfo); auditErr != nil {
+		respondTaskError(c, service.TaskErrorWrapperLocal(auditErr.Err, string(auditErr.GetErrorCode()), auditErr.StatusCode))
+		return
 	}
 
 	if taskErr := relay.ResolveOriginTask(c, relayInfo); taskErr != nil {
