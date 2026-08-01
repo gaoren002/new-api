@@ -459,7 +459,7 @@ func PromptAuditQueueStatistics() (PromptAuditQueueStats, error) {
 	return stats, nil
 }
 
-func RecordBlockingPromptAuditResult(job *PromptAuditJob, event *PromptAuditEvent, storePass bool) error {
+func RecordBlockingPromptAuditResult(job *PromptAuditJob, event *PromptAuditEvent, store bool) error {
 	if job == nil || event == nil {
 		return errors.New("prompt audit blocking result is required")
 	}
@@ -474,7 +474,7 @@ func RecordBlockingPromptAuditResult(job *PromptAuditJob, event *PromptAuditEven
 		if err := tx.Create(job).Error; err != nil {
 			return err
 		}
-		if event.Decision == "pass" && !storePass {
+		if !store {
 			return nil
 		}
 		event.JobId = &job.Id

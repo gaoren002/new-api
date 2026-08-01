@@ -344,6 +344,7 @@ export function PromptAuditSection({ groupRatio }: PromptAuditSectionProps) {
         mode: config.mode,
         blocking_latest_turn_only: config.blocking_latest_turn_only,
         store_pass_events: config.store_pass_events,
+        store_blocked_events_only: config.store_blocked_events_only,
         strategy: 'priority',
         worker_count: config.worker_count,
         queue_capacity: config.queue_capacity,
@@ -541,6 +542,14 @@ export function PromptAuditSection({ groupRatio }: PromptAuditSectionProps) {
             </Button>
           </div>
         </div>
+        {config.content_moderation_active ? (
+          <div className='border-warning/40 bg-warning/10 text-warning-foreground mt-4 flex items-center gap-2 border px-3 py-2 text-sm'>
+            <ShieldCheck className='size-4 shrink-0' />
+            {t(
+              'Content moderation is enabled. Disable it before enabling prompt audit.'
+            )}
+          </div>
+        ) : null}
         {runtime ? (
           <div className='grid grid-cols-2 gap-x-6 gap-y-3 border-b py-4 text-sm md:grid-cols-4 lg:grid-cols-6'>
             <RuntimeValue
@@ -590,14 +599,12 @@ export function PromptAuditSection({ groupRatio }: PromptAuditSectionProps) {
             />
             <RuntimeValue
               label={t('Last error')}
-              value={
-                t(
-                  runtime.config_load_error ||
-                    runtime.last_error_message ||
-                    runtime.last_error_code ||
-                    '-'
-                )
-              }
+              value={t(
+                runtime.config_load_error ||
+                  runtime.last_error_message ||
+                  runtime.last_error_code ||
+                  '-'
+              )}
             />
           </div>
         ) : null}
@@ -622,7 +629,13 @@ export function PromptAuditSection({ groupRatio }: PromptAuditSectionProps) {
                 }}
               >
                 {modeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
+                  <option
+                    key={option.value}
+                    value={option.value}
+                    disabled={
+                      config.content_moderation_active && option.value !== 'off'
+                    }
+                  >
                     {t(option.label)}
                   </option>
                 ))}
@@ -639,7 +652,23 @@ export function PromptAuditSection({ groupRatio }: PromptAuditSectionProps) {
               <ToggleRow
                 label={t('Store pass events')}
                 checked={config.store_pass_events}
-                onChange={(value) => patchConfig({ store_pass_events: value })}
+                disabled={config.store_blocked_events_only}
+                onChange={(value) =>
+                  patchConfig({
+                    store_pass_events: value,
+                    ...(value ? { store_blocked_events_only: false } : {}),
+                  })
+                }
+              />
+              <ToggleRow
+                label={t('Store blocked events only')}
+                checked={config.store_blocked_events_only}
+                onChange={(value) =>
+                  patchConfig({
+                    store_blocked_events_only: value,
+                    ...(value ? { store_pass_events: false } : {}),
+                  })
+                }
               />
             </div>
             <label className='space-y-2 text-sm'>
@@ -944,7 +973,14 @@ export function PromptAuditSection({ groupRatio }: PromptAuditSectionProps) {
                       }
                     >
                       {modeOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
+                        <option
+                          key={option.value}
+                          value={option.value}
+                          disabled={
+                            config.content_moderation_active &&
+                            option.value !== 'off'
+                          }
+                        >
                           {t(option.label)}
                         </option>
                       ))}

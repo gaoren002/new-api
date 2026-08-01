@@ -120,6 +120,7 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 	var secondLastStreamData string // 保留倒数第二个stream data；部分兼容网关把完整usage放在倒数第二个事件
 	seenStreamToolCalls := make(map[string]struct{})
 	var streamFunctionCallNames []string
+	var cyberUsage *dto.Usage
 
 	helper.StreamScannerHandler(c, resp, info, func(data string, sr *helper.StreamResult) {
 		if lastStreamData != "" {
@@ -127,6 +128,14 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 				common.SysLog("error handling stream format: " + err.Error())
 				sr.Error(err)
 			}
+		}
+		if cyberPolicy, cyberMessage := service.DetectCyberPolicyPayload(common.StringToByteSlice(data)); cyberPolicy {
+			service.MarkCyberPolicy(c, service.CyberPolicyMark{Message: cyberMessage, Body: data, UpstreamStatus: http.StatusOK})
+			_ = sendCyberPolicyCompatStreamError(c, info, cyberMessage)
+			lastStreamData = ""
+			cyberUsage = cyberPolicyTextUsage(common.StringToByteSlice(data))
+			sr.Done()
+			return
 		}
 		if len(data) > 0 {
 			if lastStreamData != "" {
@@ -141,6 +150,9 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 			}
 		}
 	})
+	if cyberUsage != nil {
+		return cyberUsage, nil
+	}
 
 	// 处理最后的响应
 	shouldSendLastResp := true
