@@ -16,6 +16,7 @@ import (
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/gin-gonic/gin"
 )
 
 func MidjourneyErrorWrapper(code int, desc string) *taskdto.MidjourneyResponse {
@@ -109,6 +110,24 @@ func RelayErrorHandler(ctx context.Context, resp *http.Response, showBodyWhenFai
 		} else {
 			logger.LogError(ctx, fmt.Sprintf("bad response status code %d, body: %s", resp.StatusCode, responseBodyPreview))
 			newApiErr.Err = fmt.Errorf("bad response status code %d", resp.StatusCode)
+		}
+		return
+	}
+	if detected, message := DetectCyberPolicyPayload(responseBody); detected {
+		if c, ok := ctx.(*gin.Context); ok {
+			MarkCyberPolicy(c, CyberPolicyMark{Message: message, Body: responseBodyText, UpstreamStatus: resp.StatusCode})
+		}
+		oaiError := errResponse.TryToOpenAIError()
+		if oaiError == nil {
+			oaiError = &types.OpenAIError{Message: message, Type: "upstream_error", Code: types.ErrorCodeCyberPolicy}
+		}
+		if strings.TrimSpace(oaiError.Message) == "" {
+			oaiError.Message = message
+		}
+		oaiError.Code = types.ErrorCodeCyberPolicy
+		newApiErr = types.WithOpenAIError(*oaiError, resp.StatusCode, types.ErrOptionWithSkipRetry())
+		if showBodyWhenFail {
+			newApiErr.Err = buildErrWithBody(newApiErr.Error())
 		}
 		return
 	}

@@ -739,6 +739,8 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 				Model: model,
 				Input: testResponsesInput,
 			}
+		case constant.EndpointTypeModeration:
+			return &dto.GeneralOpenAIRequest{Model: model, Input: "hi"}
 		case constant.EndpointTypeAnthropic:
 			return &dto.ClaudeRequest{
 				Model:     model,

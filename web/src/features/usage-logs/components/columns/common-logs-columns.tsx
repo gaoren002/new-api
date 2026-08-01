@@ -21,8 +21,8 @@ import { Database, GitBranch, Sparkles, KeyRound } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { GroupBadge } from '@/components/group-badge'
 import { DataTableColumnHeader } from '@/components/data-table'
+import { GroupBadge } from '@/components/group-badge'
 import { StatusBadge, type StatusBadgeProps } from '@/components/status-badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -122,7 +122,7 @@ function getDataConsentLogConfig(other: LogOtherData | null): {
         label: 'Unsigned',
         variant: 'warning',
         multiplier: other.data_consent_price_multiplier,
-    }
+      }
   }
 }
 function buildDetailSegments(

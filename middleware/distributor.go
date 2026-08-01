@@ -516,6 +516,11 @@ func getModelRequest(c *gin.Context) (*ModelRequest, bool, error) {
 			modelRequest.Model = "text-moderation-stable"
 		}
 	}
+	if strings.HasPrefix(c.Request.URL.Path, "/v1/guard/moderations") {
+		if modelRequest.Model == "" {
+			modelRequest.Model = "qwen3guard"
+		}
+	}
 	if strings.HasSuffix(c.Request.URL.Path, "embeddings") {
 		if modelRequest.Model == "" {
 			modelRequest.Model = c.Param("model")

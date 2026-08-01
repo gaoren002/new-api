@@ -317,7 +317,11 @@ func GetAndValidateTextRequest(c *gin.Context, relayMode int) (*dto.GeneralOpenA
 	}
 
 	if relayMode == relayconstant.RelayModeModerations && textRequest.Model == "" {
-		textRequest.Model = "text-moderation-latest"
+		if strings.HasPrefix(c.Request.URL.Path, "/v1/guard/moderations") {
+			textRequest.Model = "qwen3guard"
+		} else {
+			textRequest.Model = "text-moderation-latest"
+		}
 	}
 	if relayMode == relayconstant.RelayModeEmbeddings && textRequest.Model == "" {
 		textRequest.Model = c.Param("model")
