@@ -220,6 +220,18 @@ func SetApiRouter(router *gin.Engine) {
 			promptAuditRoute.POST("/events/batch-delete", controller.DeletePromptAuditEvents)
 			promptAuditRoute.POST("/events/filter-delete", controller.DeletePromptAuditEventsByFilter)
 		}
+		contentModerationRoute := apiRouter.Group("/content-moderation")
+		contentModerationRoute.Use(middleware.RootAuth())
+		{
+			contentModerationRoute.GET("/config", controller.GetContentModerationConfig)
+			contentModerationRoute.PUT("/config", controller.UpdateContentModerationConfig)
+			contentModerationRoute.POST("/test", controller.TestContentModerationKeys)
+			contentModerationRoute.GET("/runtime", controller.GetContentModerationRuntime)
+			contentModerationRoute.GET("/logs", controller.ListContentModerationLogs)
+			contentModerationRoute.POST("/users/:user_id/unban", controller.UnbanContentModerationUser)
+			contentModerationRoute.DELETE("/hashes", controller.DeleteContentModerationHash)
+			contentModerationRoute.DELETE("/hashes/all", controller.ClearContentModerationHashes)
+		}
 
 		// Custom OAuth provider management (root only)
 		customOAuthRoute := apiRouter.Group("/custom-oauth-provider")

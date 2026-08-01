@@ -146,6 +146,10 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *
 	}
 
 	usageDto := usage.(*dto.Usage)
+	if service.GetCyberPolicyMark(c) != nil {
+		settleCyberPolicyTextUsage(c, info, usageDto)
+		return nil
+	}
 	if info.RelayMode == relayconstant.RelayModeResponsesCompact {
 		originModelName := info.OriginModelName
 		originPriceData := info.PriceData

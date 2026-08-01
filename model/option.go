@@ -19,6 +19,9 @@ import (
 )
 
 var ErrOptionVersionConflict = errors.New("option version conflict")
+var ErrSecurityAuditEngineConflict = errors.New("content moderation and prompt audit cannot be enabled at the same time")
+
+const SecurityAuditConfigLockOptionKey = "SecurityAuditConfigLock"
 
 type Option struct {
 	Key   string `json:"key" gorm:"primaryKey"`
@@ -190,6 +193,7 @@ func InitOptionMap() {
 	common.OptionMap["PromptAuditScanners"] = setting.PromptAuditScanners
 	common.OptionMap["PromptAuditGroupPolicies"] = setting.PromptAuditGroupPolicies
 	common.OptionMap[setting.PromptAuditConfigOptionKey] = setting.PromptAuditConfigJSON
+	common.OptionMap[setting.ContentModerationConfigOptionKey] = setting.ContentModerationConfigJSON
 	common.OptionMap["StreamCacheQueueLength"] = strconv.Itoa(setting.StreamCacheQueueLength)
 	common.OptionMap["AutomaticDisableKeywords"] = operation_setting.AutomaticDisableKeywordsToString()
 	common.OptionMap["AutomaticDisableStatusCodes"] = operation_setting.AutomaticDisableStatusCodesToString()
@@ -284,6 +288,65 @@ func UpdateJSONOptionCAS(key string, expectedVersion int64, value string) error 
 		}
 		option.Value = value
 		return tx.Save(&option).Error
+	})
+	if err != nil {
+		return err
+	}
+	return updateOptionMap(key, value)
+}
+
+func UpdateSecurityAuditOptionCAS(key string, expectedVersion int64, value string) error {
+	if expectedVersion < 1 || (key != setting.PromptAuditConfigOptionKey && key != setting.ContentModerationConfigOptionKey) {
+		return ErrOptionVersionConflict
+	}
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		lock := Option{Key: SecurityAuditConfigLockOptionKey}
+		if err := tx.FirstOrCreate(&lock, Option{Key: SecurityAuditConfigLockOptionKey, Value: ""}).Error; err != nil {
+			return err
+		}
+		if err := lockForUpdate(tx).Where(commonKeyCol+" = ?", SecurityAuditConfigLockOptionKey).First(&lock).Error; err != nil {
+			return err
+		}
+
+		current := Option{Key: key}
+		if err := tx.FirstOrCreate(&current, Option{Key: key, Value: ""}).Error; err != nil {
+			return err
+		}
+		currentVersion := int64(1)
+		if strings.TrimSpace(current.Value) != "" {
+			var versioned struct {
+				ConfigVersion int64 `json:"config_version"`
+			}
+			if err := json.Unmarshal([]byte(current.Value), &versioned); err != nil {
+				return err
+			}
+			if versioned.ConfigVersion > 0 {
+				currentVersion = versioned.ConfigVersion
+			}
+		}
+		if currentVersion != expectedVersion {
+			return ErrOptionVersionConflict
+		}
+
+		peerKey := setting.ContentModerationConfigOptionKey
+		nextActive := setting.PromptAuditJSONActive(value)
+		peerActive := setting.ContentModerationJSONActive
+		if key == setting.ContentModerationConfigOptionKey {
+			peerKey = setting.PromptAuditConfigOptionKey
+			nextActive = setting.ContentModerationJSONActive(value)
+			peerActive = setting.PromptAuditJSONActive
+		}
+		if nextActive {
+			var peer Option
+			if err := tx.Where(commonKeyCol+" = ?", peerKey).First(&peer).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+			if peerActive(peer.Value) {
+				return ErrSecurityAuditEngineConflict
+			}
+		}
+		current.Value = value
+		return tx.Save(&current).Error
 	})
 	if err != nil {
 		return err
@@ -687,6 +750,17 @@ func updateOptionMap(key string, value string) (err error) {
 		_, err = setting.GetPromptAuditStorageConfig()
 		if err != nil {
 			setting.PromptAuditConfigJSON = previous
+		}
+	case setting.ContentModerationConfigOptionKey:
+		if strings.TrimSpace(value) == "" {
+			setting.ContentModerationConfigJSON = ""
+			break
+		}
+		previous := setting.ContentModerationConfigJSON
+		setting.ContentModerationConfigJSON = value
+		_, err = setting.GetContentModerationStorageConfig()
+		if err != nil {
+			setting.ContentModerationConfigJSON = previous
 		}
 	case "AutomaticDisableKeywords":
 		operation_setting.AutomaticDisableKeywordsFromString(value)

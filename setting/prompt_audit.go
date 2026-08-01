@@ -93,6 +93,7 @@ type PromptAuditStorageConfig struct {
 	Mode                   PromptAuditMode                   `json:"mode"`
 	BlockingLatestTurnOnly bool                              `json:"blocking_latest_turn_only"`
 	StorePassEvents        bool                              `json:"store_pass_events"`
+	StoreBlockedEventsOnly bool                              `json:"store_blocked_events_only"`
 	Strategy               string                            `json:"strategy"`
 	WorkerCount            int                               `json:"worker_count"`
 	QueueCapacity          int                               `json:"queue_capacity"`
@@ -118,6 +119,7 @@ type PromptAuditConfig struct {
 	Scanners               []string
 	BlockingLatestTurnOnly bool
 	StorePassEvents        bool
+	StoreBlockedEventsOnly bool
 	WorkerCount            int
 	QueueCapacity          int
 	Strategy               string
@@ -136,6 +138,7 @@ func DefaultPromptAuditStorageConfig() PromptAuditStorageConfig {
 		Mode:                   mode,
 		BlockingLatestTurnOnly: true,
 		StorePassEvents:        false,
+		StoreBlockedEventsOnly: false,
 		Strategy:               "priority",
 		WorkerCount:            DefaultPromptAuditWorkerCount,
 		QueueCapacity:          DefaultPromptAuditQueueCapacity,
@@ -177,6 +180,31 @@ func GetPromptAuditStorageConfig() (PromptAuditStorageConfig, error) {
 	return config, nil
 }
 
+func PromptAuditStorageActive(config PromptAuditStorageConfig) bool {
+	if config.Mode != PromptAuditModeOff {
+		return true
+	}
+	for _, policy := range config.GroupPolicies {
+		if promptAuditEffectivePolicyMode(config.Mode, policy) != PromptAuditModeOff {
+			return true
+		}
+	}
+	return false
+}
+
+func PromptAuditJSONActive(raw string) bool {
+	if strings.TrimSpace(raw) == "" {
+		config, err := GetPromptAuditStorageConfig()
+		return err == nil && PromptAuditStorageActive(config)
+	}
+	config := DefaultPromptAuditStorageConfig()
+	if json.Unmarshal([]byte(raw), &config) != nil {
+		return false
+	}
+	normalizePromptAuditStorageConfig(&config)
+	return PromptAuditStorageActive(config)
+}
+
 func GetPromptAuditConfig() PromptAuditConfig {
 	config, err := GetPromptAuditStorageConfig()
 	if err != nil {
@@ -204,7 +232,8 @@ func promptAuditActiveConfig(storage PromptAuditStorageConfig, group string) Pro
 		Enabled: mode != PromptAuditModeOff, Mode: mode, FailClosed: true,
 		MaxConcurrency: PromptAuditMaxConcurrency, Scanners: scanners,
 		BlockingLatestTurnOnly: storage.BlockingLatestTurnOnly, StorePassEvents: storage.StorePassEvents,
-		WorkerCount: storage.WorkerCount, QueueCapacity: storage.QueueCapacity, Strategy: storage.Strategy,
+		StoreBlockedEventsOnly: storage.StoreBlockedEventsOnly,
+		WorkerCount:            storage.WorkerCount, QueueCapacity: storage.QueueCapacity, Strategy: storage.Strategy,
 		ConfigVersion: storage.ConfigVersion, Group: group,
 	}
 	for _, endpoint := range storage.Endpoints {
