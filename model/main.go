@@ -377,11 +377,15 @@ func migrateDB() error {
 		&PromptAuditJob{},
 		&PromptAuditEvent{},
 		&PromptAuditQueueLock{},
+		&ContentModerationLog{},
 		&CasbinRule{},
 		&AuthzRole{},
 		&UserAccessToken{},
 	)
 	if err != nil {
+		return err
+	}
+	if err := DB.FirstOrCreate(&Option{Key: SecurityAuditConfigLockOptionKey}, Option{Key: SecurityAuditConfigLockOptionKey, Value: ""}).Error; err != nil {
 		return err
 	}
 	if err := InitializeUserAuthVersions(); err != nil {

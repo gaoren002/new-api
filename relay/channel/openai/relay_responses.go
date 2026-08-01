@@ -76,9 +76,10 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 	defer service.CloseResponseBodyGracefully(resp)
 
 	accumulator := service.NewResponsesUsageAccumulator(info)
+	var cyberUsage *dto.Usage
 
 	helper.StreamScannerHandler(c, resp, info, func(data string, sr *helper.StreamResult) {
-
+		cyberPolicy, cyberMessage := service.DetectCyberPolicyPayload(common.StringToByteSlice(data))
 		// 检查当前数据是否包含 completed 状态和 usage 信息
 		var streamResponse dto.ResponsesStreamResponse
 		if err := common.UnmarshalJsonStr(data, &streamResponse); err != nil {
@@ -88,6 +89,19 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 		}
 		if streamResponse.Response != nil {
 			data = string(rewriteSGLangResponsesCreatedAt(info, []byte(data), "response.created_at", streamResponse.Response.CreatedAt))
+		}
+		if cyberPolicy {
+			// The rejection reaches the client as received and ends the stream. It is
+			// not observed as a stream failure: it is the request's outcome, not
+			// channel health.
+			if err := helper.ResponseChunkData(c, streamResponse, data); err != nil {
+				sr.Stop(err)
+				return
+			}
+			service.MarkCyberPolicy(c, service.CyberPolicyMark{Message: cyberMessage, Body: data, UpstreamStatus: http.StatusOK})
+			cyberUsage = cyberPolicyTextUsage(common.StringToByteSlice(data))
+			sr.Done()
+			return
 		}
 		accumulator.Observe(&streamResponse, common.StringToByteSlice(data))
 		if err := helper.ResponseChunkData(c, streamResponse, data); err != nil {
@@ -102,6 +116,11 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 
 	common.SetContextKey(c, constant.ContextKeyResponseStreamStatus, info.StreamStatus)
 	info.StreamStatus.RequireTerminal()
+	if cyberUsage != nil {
+		// A policy rejection is billed only from explicit upstream usage,
+		// never from partial output or the request's local estimate.
+		return cyberUsage, nil
+	}
 	return accumulator.Finish(), nil
 }
 

@@ -202,7 +202,7 @@ func TestRecordBlockingPromptAuditResultAlwaysCreatesDoneJob(t *testing.T) {
 
 	riskJob := &PromptAuditJob{RequestId: "blocking-risk", SnapshotJSON: `{"redacted_preview":"***"}`}
 	riskEvent := &PromptAuditEvent{RequestId: "blocking-risk", Decision: "critical", RiskLevel: "critical"}
-	require.NoError(t, RecordBlockingPromptAuditResult(riskJob, riskEvent, false))
+	require.NoError(t, RecordBlockingPromptAuditResult(riskJob, riskEvent, true))
 	require.NotNil(t, riskEvent.JobId)
 	require.Equal(t, riskJob.Id, *riskEvent.JobId)
 }

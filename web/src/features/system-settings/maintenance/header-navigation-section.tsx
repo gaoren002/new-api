@@ -56,6 +56,7 @@ const headerNavSchema = z.object({
   rankingsEnabled: z.boolean(),
   rankingsRequireAuth: z.boolean(),
   docs: z.boolean(),
+  moderationDocs: z.boolean(),
   about: z.boolean(),
 })
 
@@ -91,6 +92,10 @@ const toFormValues = (config: HeaderNavModulesConfig): HeaderNavFormValues => ({
       : Boolean(config.rankings.requireAuth),
   docs:
     config.docs === undefined ? HEADER_NAV_DEFAULT.docs : Boolean(config.docs),
+  moderationDocs:
+    config.moderationDocs === undefined
+      ? HEADER_NAV_DEFAULT.moderationDocs
+      : Boolean(config.moderationDocs),
   about:
     config.about === undefined
       ? HEADER_NAV_DEFAULT.about
@@ -120,6 +125,7 @@ export function HeaderNavigationSection({
       home: values.home,
       console: values.console,
       docs: values.docs,
+      moderationDocs: values.moderationDocs,
       about: values.about,
       pricing: {
         ...(config.pricing ?? HEADER_NAV_DEFAULT.pricing),
@@ -167,6 +173,11 @@ export function HeaderNavigationSection({
       key: 'docs',
       title: t('Docs'),
       description: t('Documentation or external knowledge base.'),
+    },
+    {
+      key: 'moderationDocs',
+      title: t('Moderation Docs'),
+      description: t('Content moderation API documentation page.'),
     },
     {
       key: 'about',

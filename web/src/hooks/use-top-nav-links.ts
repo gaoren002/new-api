@@ -95,6 +95,11 @@ export function useTopNavLinks(): TopNavLink[] {
     }
   }
 
+  // Moderation docs
+  if (modules?.moderationDocs !== false) {
+    links.push({ title: t('Moderation Docs'), href: '/moderation-docs' })
+  }
+
   // About
   if (modules?.about !== false) {
     links.push({ title: t('About'), href: '/about' })

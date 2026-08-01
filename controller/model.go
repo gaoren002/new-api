@@ -15,6 +15,7 @@ import (
 	"github.com/QuantumNous/new-api/relay/channel/lingyiwanwu"
 	"github.com/QuantumNous/new-api/relay/channel/minimax"
 	"github.com/QuantumNous/new-api/relay/channel/moonshot"
+	"github.com/QuantumNous/new-api/relay/channel/qwen3guard"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/relaykit/dto"
@@ -80,6 +81,14 @@ func init() {
 			Object:  "model",
 			Created: 1626777600,
 			OwnedBy: minimax.ChannelName,
+		})
+	}
+	for _, modelName := range qwen3guard.ModelList {
+		openAIModels = append(openAIModels, dto.OpenAIModels{
+			Id:      modelName,
+			Object:  "model",
+			Created: 1626777600,
+			OwnedBy: qwen3guard.ChannelName,
 		})
 	}
 	for modelName, _ := range constant.MidjourneyModel2Action {

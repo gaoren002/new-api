@@ -23,6 +23,7 @@ func TestPromptAuditStorageConfigModesEndpointsAndGroups(t *testing.T) {
 	storage := DefaultPromptAuditStorageConfig()
 	storage.Mode = PromptAuditModeAsync
 	storage.FailClosed = false
+	storage.StoreBlockedEventsOnly = true
 	storage.ConfigVersion = 7
 	storage.Endpoints = append(storage.Endpoints, PromptAuditEndpoint{
 		ID: "backup", Name: "Backup", Protocol: "openai_compatible", BaseURL: "https://guard.example/v1",
@@ -38,10 +39,12 @@ func TestPromptAuditStorageConfigModesEndpointsAndGroups(t *testing.T) {
 	loaded, err := GetPromptAuditStorageConfig()
 	require.NoError(t, err)
 	require.True(t, loaded.FailClosed)
+	require.True(t, loaded.StoreBlockedEventsOnly)
 	require.True(t, loaded.GroupPolicies["strict"].FailClosed)
 	require.Equal(t, PromptAuditModeAsync, GetPromptAuditConfigForGroup("default").Mode)
 	strict := GetPromptAuditConfigForGroup("strict")
 	require.Equal(t, PromptAuditModeBlocking, strict.Mode)
+	require.True(t, strict.StoreBlockedEventsOnly)
 	require.True(t, strict.FailClosed)
 	require.Equal(t, []string{"pii"}, strict.Scanners)
 	require.False(t, GetPromptAuditConfigForGroup("off").Enabled)
