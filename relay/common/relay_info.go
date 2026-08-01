@@ -104,6 +104,7 @@ type RelayInfo struct {
 	DisablePing            bool // 是否禁止向下游发送自定义 Ping
 	ClientWs               *websocket.Conn
 	TargetWs               *websocket.Conn
+	RealtimePromptAudit    func([]byte) *types.NewAPIError
 	InputAudioFormat       string
 	OutputAudioFormat      string
 	RealtimeTools          []dto.RealTimeTool
