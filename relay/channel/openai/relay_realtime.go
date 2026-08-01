@@ -30,6 +30,7 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*types.
 	sendChan := make(chan []byte, 100)
 	receiveChan := make(chan []byte, 100)
 	errChan := make(chan error, 2)
+	auditErrChan := make(chan *types.NewAPIError, 1)
 
 	usage := &dto.RealtimeUsage{}
 	localUsage := &dto.RealtimeUsage{}
@@ -60,6 +61,15 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*types.
 				if err != nil {
 					errChan <- fmt.Errorf("error unmarshalling message: %v", err)
 					return
+				}
+				if info.RealtimePromptAudit != nil {
+					if auditErr := info.RealtimePromptAudit(message); auditErr != nil {
+						select {
+						case auditErrChan <- auditErr:
+						default:
+						}
+						return
+					}
 				}
 
 				if realtimeEvent.Type == dto.RealtimeEventTypeSessionUpdate {
@@ -207,6 +217,8 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*types.
 	case err := <-errChan:
 		//return service.OpenAIErrorWrapper(err, "realtime_error", http.StatusInternalServerError), nil
 		logger.LogError(c, "realtime error: "+err.Error())
+	case auditErr := <-auditErrChan:
+		return auditErr, sumUsage
 	case <-c.Done():
 	}
 
