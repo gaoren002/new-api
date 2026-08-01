@@ -112,6 +112,21 @@ func RelayErrorHandler(ctx context.Context, resp *http.Response, showBodyWhenFai
 		}
 		return
 	}
+	if detected, message := DetectCyberPolicyPayload(responseBody); detected {
+		oaiError := errResponse.TryToOpenAIError()
+		if oaiError == nil {
+			oaiError = &types.OpenAIError{Message: message, Type: "upstream_error", Code: types.ErrorCodeCyberPolicy}
+		}
+		if strings.TrimSpace(oaiError.Message) == "" {
+			oaiError.Message = message
+		}
+		oaiError.Code = types.ErrorCodeCyberPolicy
+		newApiErr = types.WithOpenAIError(*oaiError, resp.StatusCode, types.ErrOptionWithSkipRetry())
+		if showBodyWhenFail {
+			newApiErr.Err = buildErrWithBody(newApiErr.Error())
+		}
+		return
+	}
 
 	if common.GetJsonType(errResponse.Error) == "object" {
 		// General format error (OpenAI, Anthropic, Gemini, etc.)

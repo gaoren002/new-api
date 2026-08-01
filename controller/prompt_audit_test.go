@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -80,6 +81,36 @@ func TestPromptAuditJSONBodyExtractsMultipartTextFieldsOnly(t *testing.T) {
 	require.NotContains(t, string(auditBody), "binary-image-canary")
 }
 
+func TestContentModerationJSONBodyIncludesOneMultipartImage(t *testing.T) {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	require.NoError(t, writer.WriteField("prompt", "inspect this image"))
+	file, err := writer.CreateFormFile("image", "input.png")
+	require.NoError(t, err)
+	_, err = file.Write([]byte("\x89PNG\r\n\x1a\nimage-data"))
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+
+	context, _ := gin.CreateTestContext(httptest.NewRecorder())
+	context.Request = httptest.NewRequest(http.MethodPost, "/v1/images/edits", nil)
+	context.Request.Header.Set("Content-Type", writer.FormDataContentType())
+	storage, err := common.CreateBodyStorage(body.Bytes())
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = storage.Close() })
+	context.Set(common.KeyBodyStorage, storage)
+
+	auditBody, err := contentModerationJSONBody(context, body.Bytes())
+	require.NoError(t, err)
+	var payload struct {
+		Prompt string   `json:"prompt"`
+		Images []string `json:"images"`
+	}
+	require.NoError(t, json.Unmarshal(auditBody, &payload))
+	require.Equal(t, "inspect this image", payload.Prompt)
+	require.Len(t, payload.Images, 1)
+	require.True(t, strings.HasPrefix(payload.Images[0], "data:image/png;base64,"))
+}
+
 func TestEvaluatePromptAuditBlocksBeforeRelay(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
@@ -96,6 +127,95 @@ func TestEvaluatePromptAuditBlocksBeforeRelay(t *testing.T) {
 	require.NotNil(t, newAPIError)
 	require.Equal(t, types.ErrorCodePromptBlocked, newAPIError.GetErrorCode())
 	require.Equal(t, http.StatusForbidden, newAPIError.StatusCode)
+}
+
+func TestEvaluateSecurityAuditSelectsOnlyContentModeration(t *testing.T) {
+	var promptAuditCalls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		promptAuditCalls.Add(1)
+		_, _ = writer.Write([]byte(`{"choices":[{"message":{"content":"Safety: Safe\nCategories: None"}}]}`))
+	}))
+	defer server.Close()
+
+	previousPromptJSON := setting.PromptAuditConfigJSON
+	previousContentJSON := setting.ContentModerationConfigJSON
+	t.Cleanup(func() {
+		setting.PromptAuditConfigJSON = previousPromptJSON
+		setting.ContentModerationConfigJSON = previousContentJSON
+	})
+	prompt := setting.DefaultPromptAuditStorageConfig()
+	prompt.Mode = setting.PromptAuditModeBlocking
+	prompt.Endpoints[0].BaseURL = server.URL
+	prompt.Endpoints[0].Model = "guard-model"
+	promptRaw, err := json.Marshal(prompt)
+	require.NoError(t, err)
+	setting.PromptAuditConfigJSON = string(promptRaw)
+
+	content := setting.DefaultContentModerationStorageConfig()
+	content.Enabled = true
+	content.Mode = setting.ContentModerationModePreBlock
+	content.KeywordBlockingMode = setting.ContentModerationKeywordOnly
+	content.BlockedKeywords = []string{"blocked phrase"}
+	contentRaw, err := json.Marshal(content)
+	require.NoError(t, err)
+	setting.ContentModerationConfigJSON = string(contentRaw)
+
+	context := promptAuditGinContext(t, `{"messages":[{"role":"user","content":"blocked phrase"}]}`)
+	newAPIError := evaluateSecurityAuditWithRelayInfo(context, types.RelayFormatOpenAI, "default", nil)
+	require.NotNil(t, newAPIError)
+	require.Equal(t, types.ErrorCodeContentModerationBlocked, newAPIError.GetErrorCode())
+	require.Zero(t, promptAuditCalls.Load())
+}
+
+func TestGetContentModerationConfigDoesNotExposeAPIKeys(t *testing.T) {
+	t.Setenv(setting.PromptAuditEncryptionKeyEnv, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	previous := setting.ContentModerationConfigJSON
+	t.Cleanup(func() { setting.ContentModerationConfigJSON = previous })
+	config := setting.DefaultContentModerationStorageConfig()
+	ciphertext, err := setting.EncryptContentModerationAPIKey("content-secret-canary")
+	require.NoError(t, err)
+	config.APIKeyCiphertexts = []string{ciphertext}
+	raw, err := json.Marshal(config)
+	require.NoError(t, err)
+	setting.ContentModerationConfigJSON = string(raw)
+
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	context.Request = httptest.NewRequest(http.MethodGet, "/api/content-moderation/config", nil)
+	GetContentModerationConfig(context)
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.NotContains(t, recorder.Body.String(), "content-secret-canary")
+	require.NotContains(t, recorder.Body.String(), ciphertext)
+	require.Contains(t, recorder.Body.String(), "****nary")
+}
+
+func TestGetContentModerationConfigSerializesEmptyCollectionsAsArrays(t *testing.T) {
+	previous := setting.ContentModerationConfigJSON
+	t.Cleanup(func() { setting.ContentModerationConfigJSON = previous })
+	setting.ContentModerationConfigJSON = ""
+
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	context.Request = httptest.NewRequest(http.MethodGet, "/api/content-moderation/config", nil)
+	GetContentModerationConfig(context)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	var response struct {
+		Data struct {
+			Groups          []string `json:"groups"`
+			BlockedKeywords []string `json:"blocked_keywords"`
+			ModelFilter     struct {
+				Models []string `json:"models"`
+			} `json:"model_filter"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
+	require.NotNil(t, response.Data.Groups)
+	require.NotNil(t, response.Data.BlockedKeywords)
+	require.NotNil(t, response.Data.ModelFilter.Models)
+	require.Empty(t, response.Data.Groups)
+	require.Empty(t, response.Data.BlockedKeywords)
+	require.Empty(t, response.Data.ModelFilter.Models)
 }
 
 func TestEvaluatePromptAuditAlwaysFailsClosed(t *testing.T) {
@@ -253,6 +373,7 @@ func TestUpdatePromptAuditConfigClearsStoredToken(t *testing.T) {
 
 	storage := setting.DefaultPromptAuditStorageConfig()
 	storage.ConfigVersion = 3
+	storage.StoreBlockedEventsOnly = true
 	ciphertext, err := setting.EncryptPromptAuditToken("stored-token-canary")
 	require.NoError(t, err)
 	storage.Endpoints[0].TokenCiphertext = ciphertext
@@ -270,11 +391,13 @@ func TestUpdatePromptAuditConfigClearsStoredToken(t *testing.T) {
 	require.Equal(t, http.StatusOK, recorder.Code)
 	require.NotContains(t, recorder.Body.String(), "stored-token-canary")
 	require.NotContains(t, recorder.Body.String(), ciphertext)
+	require.Contains(t, recorder.Body.String(), `"store_blocked_events_only":true`)
 
 	updated, err := setting.GetPromptAuditStorageConfig()
 	require.NoError(t, err)
 	require.Equal(t, int64(4), updated.ConfigVersion)
 	require.Equal(t, 7, updated.UpdatedBy)
+	require.True(t, updated.StoreBlockedEventsOnly)
 	require.Empty(t, updated.Endpoints[0].TokenCiphertext)
 }
 
@@ -394,6 +517,7 @@ func promptAuditConfigUpdateBody(t *testing.T, storage setting.PromptAuditStorag
 		"mode":                      storage.Mode,
 		"blocking_latest_turn_only": storage.BlockingLatestTurnOnly,
 		"store_pass_events":         storage.StorePassEvents,
+		"store_blocked_events_only": storage.StoreBlockedEventsOnly,
 		"strategy":                  storage.Strategy,
 		"worker_count":              storage.WorkerCount,
 		"queue_capacity":            storage.QueueCapacity,

@@ -69,15 +69,17 @@ const (
 	ErrorCodeBadRequestBody ErrorCode = "bad_request_body"
 
 	// response error
-	ErrorCodeReadResponseBodyFailed ErrorCode = "read_response_body_failed"
-	ErrorCodeBadResponseStatusCode  ErrorCode = "bad_response_status_code"
-	ErrorCodeBadResponse            ErrorCode = "bad_response"
-	ErrorCodeBadResponseBody        ErrorCode = "bad_response_body"
-	ErrorCodeEmptyResponse          ErrorCode = "empty_response"
-	ErrorCodeAwsInvokeError         ErrorCode = "aws_invoke_error"
-	ErrorCodeModelNotFound          ErrorCode = "model_not_found"
-	ErrorCodePromptBlocked          ErrorCode = "prompt_blocked"
-	ErrorCodePromptAuditUnavailable ErrorCode = "prompt_audit_unavailable"
+	ErrorCodeReadResponseBodyFailed   ErrorCode = "read_response_body_failed"
+	ErrorCodeBadResponseStatusCode    ErrorCode = "bad_response_status_code"
+	ErrorCodeBadResponse              ErrorCode = "bad_response"
+	ErrorCodeBadResponseBody          ErrorCode = "bad_response_body"
+	ErrorCodeEmptyResponse            ErrorCode = "empty_response"
+	ErrorCodeAwsInvokeError           ErrorCode = "aws_invoke_error"
+	ErrorCodeModelNotFound            ErrorCode = "model_not_found"
+	ErrorCodePromptBlocked            ErrorCode = "prompt_blocked"
+	ErrorCodePromptAuditUnavailable   ErrorCode = "prompt_audit_unavailable"
+	ErrorCodeContentModerationBlocked ErrorCode = "content_moderation_blocked"
+	ErrorCodeCyberPolicy              ErrorCode = "cyber_policy"
 
 	// sql error
 	ErrorCodeQueryDataError  ErrorCode = "query_data_error"

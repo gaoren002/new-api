@@ -121,6 +121,7 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 	var secondLastStreamData string // 存储倒数第二个stream data，用于音频模型
 	seenStreamToolCalls := make(map[string]struct{})
 	var streamFunctionCallNames []string
+	var cyberUsage *dto.Usage
 
 	// 检查是否为音频模型
 	isAudioModel := strings.Contains(strings.ToLower(model), "audio")
@@ -131,6 +132,14 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 				common.SysLog("error handling stream format: " + err.Error())
 				sr.Error(err)
 			}
+		}
+		if cyberPolicy, cyberMessage := service.DetectCyberPolicyPayload(common.StringToByteSlice(data)); cyberPolicy {
+			service.MarkCyberPolicy(c, service.CyberPolicyMark{Message: cyberMessage, Body: data, UpstreamStatus: http.StatusOK})
+			_ = sendCyberPolicyCompatStreamError(c, info, cyberMessage)
+			lastStreamData = ""
+			cyberUsage = cyberPolicyTextUsage(common.StringToByteSlice(data))
+			sr.Done()
+			return
 		}
 		if len(data) > 0 {
 			// 对音频模型，保存倒数第二个stream data
@@ -146,6 +155,9 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 			}
 		}
 	})
+	if cyberUsage != nil {
+		return cyberUsage, nil
+	}
 
 	// 对音频模型，从倒数第二个stream data中提取usage信息
 	if isAudioModel && secondLastStreamData != "" {

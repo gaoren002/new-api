@@ -22,6 +22,7 @@ import { SSRFSection } from '../request-limits/ssrf-section'
 import { TokenLimitSection } from '../request-limits/token-limit-section'
 import type { SecuritySettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
+import { ContentModerationSection } from './content-moderation-section'
 import { PromptAuditSection } from './prompt-audit-section'
 
 const SECURITY_SECTIONS = [
@@ -60,6 +61,13 @@ const SECURITY_SECTIONS = [
     titleKey: 'Prompt Audit',
     build: (settings: SecuritySettings) => (
       <PromptAuditSection groupRatio={settings.GroupRatio} />
+    ),
+  },
+  {
+    id: 'content-moderation',
+    titleKey: 'Content Moderation',
+    build: (settings: SecuritySettings) => (
+      <ContentModerationSection groupRatio={settings.GroupRatio} />
     ),
   },
   {
