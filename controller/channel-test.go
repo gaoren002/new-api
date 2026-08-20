@@ -733,6 +733,12 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 				Model: model,
 				Input: testResponsesInput,
 			}
+		case constant.EndpointTypeModeration:
+			// 返回带 input 的 GeneralOpenAIRequest（守护审核端点）
+			return &dto.GeneralOpenAIRequest{
+				Model: model,
+				Input: "hi",
+			}
 		case constant.EndpointTypeAnthropic, constant.EndpointTypeGemini, constant.EndpointTypeOpenAI:
 			// 返回 GeneralOpenAIRequest
 			maxTokens := uint(16)

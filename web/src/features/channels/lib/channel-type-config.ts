@@ -164,6 +164,19 @@ export const CHANNEL_TYPE_CONFIGS: Record<number, ChannelTypeConfig> = {
       models: 'Models',
     },
   },
+  61: {
+    id: 61,
+    name: CHANNEL_TYPES[61],
+    icon: 'Qwen',
+    defaultBaseUrl: 'http://localhost:11434',
+    hints: {
+      baseUrl:
+        'Any OpenAI-compatible endpoint serving Qwen3Guard-Gen (Ollama / vLLM / DashScope compatible mode)',
+      key: 'Optional; leave empty for local Ollama',
+      models:
+        'Default models: qwen3guard,qwen3guard-gen-0.6b,qwen3guard-gen-4b,qwen3guard-gen-8b; use model mapping to map qwen3guard to the upstream tag (e.g. sileader/qwen3guard:0.6b)',
+    },
+  },
 }
 
 /**

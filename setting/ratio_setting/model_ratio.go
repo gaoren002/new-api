@@ -210,6 +210,10 @@ var defaultModelRatio = map[string]float64{
 	"glm-4v-plus":                               0.01 * RMB,
 	"qwen-turbo":                                0.8572, // ￥0.012 / 1k tokens
 	"qwen-plus":                                 10,     // ￥0.14 / 1k tokens
+	"qwen3guard":                                0.05,
+	"qwen3guard-gen-0.6b":                       0.05,
+	"qwen3guard-gen-4b":                         0.1,
+	"qwen3guard-gen-8b":                         0.15,
 	"text-embedding-v1":                         0.05,   // ￥0.0007 / 1k tokens
 	"SparkDesk-v1.1":                            1.2858, // ￥0.018 / 1k tokens
 	"SparkDesk-v2.1":                            1.2858, // ￥0.018 / 1k tokens
