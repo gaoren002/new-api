@@ -24,6 +24,7 @@ import { GroupBadge } from '@/components/group-badge'
 import { StatusBadgeTypeContext } from '@/components/status-badge'
 
 import { CHANNEL_STATUS } from '../constants'
+import { useChannelCircuits } from '../hooks/use-channel-circuits'
 import { isTagAggregateRow, parseGroupsList } from '../lib'
 import type { Channel } from '../types'
 import { ChannelRowActionsLayoutContext } from './channel-row-actions-context'
@@ -50,6 +51,7 @@ function ChannelCardComponent({
 }) {
   const { t } = useTranslation()
   const { sensitiveVisible } = useChannels()
+  const circuits = useChannelCircuits()
   const isTagRow = isTagAggregateRow(row.original)
   const cells = row.getAllCells()
 
@@ -79,9 +81,12 @@ function ChannelCardComponent({
 
   // In card view the enable/disable state is already conveyed by the inline
   // power toggle, so the plain "Enabled"/"Disabled" badge is redundant. Keep
-  // only the informative states (e.g. auto-disabled, unknown) and tag rows.
+  // only the informative states (e.g. auto-disabled, an open circuit, unknown)
+  // and tag rows.
   const showStatusBadge =
     isTagRow ||
+    (row.original.status === CHANNEL_STATUS.ENABLED &&
+      circuits.byChannelId.has(row.original.id)) ||
     (row.original.status !== CHANNEL_STATUS.ENABLED &&
       row.original.status !== CHANNEL_STATUS.MANUAL_DISABLED)
 

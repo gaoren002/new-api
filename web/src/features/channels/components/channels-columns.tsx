@@ -41,6 +41,11 @@ import { TruncatedText } from '@/components/truncated-text'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -343,7 +348,8 @@ const SENSITIVE_MASK = '••••'
 /**
  * Status of an enabled channel. While a circuit is open the channel is skipped
  * for that model whenever another channel serves it, so the badge says so and
- * the tooltip lists the models and when they come back.
+ * its popover lists the models and when they come back. The popover opens on
+ * hover as well as on a click or tap, so touch screens can read it too.
  */
 function EnabledStatusCell(props: {
   channel: Channel
@@ -364,42 +370,50 @@ function EnabledStatusCell(props: {
     )
   }
   return (
-    <TooltipProvider delay={100}>
-      <Tooltip>
-        <TooltipTrigger render={<span />}>
-          <StatusBadge
-            label={t('Circuit open')}
-            variant='warning'
-            size='sm'
-            copyable={false}
+    <Popover>
+      <PopoverTrigger
+        openOnHover
+        delay={100}
+        render={
+          <button
+            type='button'
+            className='focus-visible:ring-ring inline-flex rounded-md focus-visible:ring-2 focus-visible:outline-none'
+            onClick={(e) => e.stopPropagation()}
           />
-        </TooltipTrigger>
-        <TooltipContent side='top' className='max-w-xs'>
-          <div className='space-y-2 text-xs'>
-            <div>
-              {t(
-                'Skipped for these models while another channel serves them. Each is tested every {{seconds}} seconds; one successful test restores it.',
-                { seconds: circuits.probeSeconds }
+        }
+      >
+        <StatusBadge
+          label={t('Circuit open')}
+          variant='warning'
+          size='sm'
+          copyable={false}
+        />
+      </PopoverTrigger>
+      <PopoverContent side='top' align='start' className='w-72 text-xs'>
+        <div className='space-y-2'>
+          <div>
+            {t(
+              'Skipped for these models while another channel serves them. Each is tested every {{seconds}} seconds; one successful test restores it.',
+              { seconds: circuits.probeSeconds }
+            )}
+          </div>
+          {open.map((circuit) => (
+            <div key={circuit.model} className='space-y-0.5'>
+              <div className='font-medium wrap-anywhere'>{circuit.model}</div>
+              <div>
+                {t('Consecutive failures:')} {circuit.failures} · {t('Since:')}{' '}
+                {formatTimestampToDate(circuit.opened_at)}
+              </div>
+              {circuit.last_failure && (
+                <div className='wrap-anywhere'>
+                  {t('Last failure:')} {circuit.last_failure}
+                </div>
               )}
             </div>
-            {open.map((circuit) => (
-              <div key={circuit.model} className='space-y-0.5'>
-                <div className='font-medium wrap-anywhere'>{circuit.model}</div>
-                <div>
-                  {t('Consecutive failures:')} {circuit.failures} ·{' '}
-                  {t('Since:')} {formatTimestampToDate(circuit.opened_at)}
-                </div>
-                {circuit.last_failure && (
-                  <div className='wrap-anywhere'>
-                    {t('Last failure:')} {circuit.last_failure}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 

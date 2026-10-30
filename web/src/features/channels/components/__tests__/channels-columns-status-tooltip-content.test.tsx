@@ -82,76 +82,93 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-test('an enabled channel with open circuits lists each model it is skipped for', async () => {
-  vi.spyOn(api, 'get').mockImplementation(async (url) => {
-    if (url !== '/api/channel/circuits') {
-      return { data: { success: true, data: [] } }
-    }
-    return {
-      data: {
-        success: true,
+test.each([
+  [
+    'hover',
+    (user: ReturnType<typeof userEvent.setup>, badge: HTMLElement) =>
+      user.hover(badge),
+  ],
+  [
+    'click or tap',
+    (user: ReturnType<typeof userEvent.setup>, badge: HTMLElement) =>
+      user.click(badge),
+  ],
+])(
+  'an enabled channel with open circuits lists each model it is skipped for on %s',
+  async (_, open) => {
+    vi.spyOn(api, 'get').mockImplementation(async (url) => {
+      if (url !== '/api/channel/circuits') {
+        return { data: { success: true, data: [] } }
+      }
+      return {
         data: {
-          failure_threshold: 3,
-          probe_seconds: 60,
-          items: [
-            {
-              channel_id: 7,
-              model: 'claude-fable-5-1',
-              failures: 3,
-              last_failure: 'first_token_timeout (504)',
-              opened_at: 1_793_000_000,
-            },
-            {
-              channel_id: 7,
-              model: 'claude-sonnet-4-6',
-              failures: 4,
-              last_failure: 'bad_response_status_code (503)',
-              opened_at: 1_793_000_100,
-            },
-            {
-              channel_id: 9,
-              model: 'gpt-4o',
-              failures: 3,
-              last_failure: 'another channel',
-              opened_at: 1_793_000_200,
-            },
-          ],
+          success: true,
+          data: {
+            failure_threshold: 3,
+            probe_seconds: 60,
+            items: [
+              {
+                channel_id: 7,
+                model: 'claude-fable-5-1',
+                failures: 3,
+                last_failure: 'first_token_timeout (504)',
+                opened_at: 1_793_000_000,
+              },
+              {
+                channel_id: 7,
+                model: 'claude-sonnet-4-6',
+                failures: 4,
+                last_failure: 'bad_response_status_code (503)',
+                opened_at: 1_793_000_100,
+              },
+              {
+                channel_id: 9,
+                model: 'gpt-4o',
+                failures: 3,
+                last_failure: 'another channel',
+                opened_at: 1_793_000_200,
+              },
+            ],
+          },
         },
-      },
-    }
-  })
-  const channelItem = channelSchema.parse({
-    id: 7,
-    type: 1,
-    key: 'test-key',
-    name: 'Broken-Channel',
-    status: 1,
-    created_time: 1,
-    test_time: 0,
-    response_time: 0,
-    balance_updated_time: 0,
-  })
-  const queryClient = new QueryClient()
-  const user = userEvent.setup()
+      }
+    })
+    const channelItem = channelSchema.parse({
+      id: 7,
+      type: 1,
+      key: 'test-key',
+      name: 'Broken-Channel',
+      status: 1,
+      created_time: 1,
+      test_time: 0,
+      response_time: 0,
+      balance_updated_time: 0,
+    })
+    const queryClient = new QueryClient()
+    const user = userEvent.setup()
 
-  render(
-    <QueryClientProvider client={queryClient}>
-      <ChannelsProvider>
-        <ExampleAutoDisabledStatusCell channel={channelItem} />
-      </ChannelsProvider>
-    </QueryClientProvider>
-  )
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ChannelsProvider>
+          <ExampleAutoDisabledStatusCell channel={channelItem} />
+        </ChannelsProvider>
+      </QueryClientProvider>
+    )
 
-  await user.hover(await screen.findByText('Circuit open'))
+    await open(
+      user,
+      await screen.findByRole('button', { name: 'Circuit open' })
+    )
 
-  expect(await screen.findByText('claude-fable-5-1')).toBeVisible()
-  expect(screen.getByText('claude-sonnet-4-6')).toBeVisible()
-  expect(
-    screen.getByText('first_token_timeout (504)', { exact: false })
-  ).toBeVisible()
-  expect(screen.queryByText('gpt-4o')).not.toBeInTheDocument()
-  expect(screen.queryByText('Enabled')).not.toBeInTheDocument()
-})
+    expect(await screen.findByText('claude-fable-5-1')).toBeVisible()
+    expect(screen.getByText('claude-sonnet-4-6')).toBeVisible()
+    expect(
+      screen.getByText('first_token_timeout (504)', { exact: false })
+    ).toBeVisible()
+    expect(screen.queryByText('gpt-4o')).not.toBeInTheDocument()
+    expect(screen.queryByText('Enabled')).not.toBeInTheDocument()
+  }
+)
 
 test('an enabled channel without an open circuit keeps the enabled badge', async () => {
   vi.spyOn(api, 'get').mockResolvedValue({
