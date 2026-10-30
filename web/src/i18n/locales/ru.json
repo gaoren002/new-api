@@ -7376,6 +7376,18 @@
     "A streaming attempt that receives no data within this time fails over to the next channel. It only applies while another channel can take over. 0 disables it.": "Потоковая попытка, не получившая данных от вышестоящего сервиса за это время, считается неудачной и переходит к следующему каналу. Действует, только если есть другой канал для переключения. 0 — отключено.",
     "Every channel gets one attempt first; retries are spent only on the last channel.": "Сначала каждый канал пробуется по одному разу без учёта повторов; повторы расходуются только на последнем канале.",
     "Non-streaming timeout (seconds)": "Тайм-аут без потоковой передачи (секунды)",
-    "A non-streaming attempt that receives no response within this time fails over to the next channel. It only applies while another channel can take over. Keep it above your slowest normal response. 0 disables it.": "Попытка без потоковой передачи, не получившая ответа за это время, считается неудачной и переходит к следующему каналу. Действует, только если есть другой канал для переключения. Значение должно превышать время самого медленного обычного ответа. 0 — отключено."
+    "A non-streaming attempt that receives no response within this time fails over to the next channel. It only applies while another channel can take over. Keep it above your slowest normal response. 0 disables it.": "Попытка без потоковой передачи, не получившая ответа за это время, считается неудачной и переходит к следующему каналу. Действует, только если есть другой канал для переключения. Значение должно превышать время самого медленного обычного ответа. 0 — отключено.",
+    "Circuit open": "Цепь разомкнута",
+    "Skipped while another channel can serve the request. Tested every {{seconds}} seconds; one successful test restores it.": "Пропускается, пока запрос может обслужить другой канал. Проверяется каждые {{seconds}} с; одна успешная проверка восстанавливает его.",
+    "Consecutive failures:": "Ошибок подряд:",
+    "Last failure:": "Последняя ошибка:",
+    "Since:": "С:",
+    "Circuit breaker": "Автоматический размыкатель",
+    "Consecutive failures to open the circuit": "Ошибок подряд до размыкания",
+    "A channel that fails this many times in a row, timeouts included, is skipped for every model another channel can serve. 0 turns the circuit breaker off.": "Канал, который столько раз подряд завершается ошибкой (включая тайм-ауты), пропускается для всех моделей, которые может обслужить другой канал. 0 — отключить.",
+    "Circuit probe interval (seconds)": "Интервал проверки разомкнутой цепи (секунды)",
+    "How often a channel with an open circuit is tested in the background. One successful test restores it.": "Как часто канал с разомкнутой цепью проверяется в фоне. Одна успешная проверка восстанавливает его.",
+    "Enter an integer between 0 and 100": "Введите целое число от 0 до 100",
+    "Enter an integer between 10 and 3600": "Введите целое число от 10 до 3600"
   }
 }

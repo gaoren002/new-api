@@ -1,6 +1,7 @@
 package service
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -73,6 +74,55 @@ func FallbackAvailable(c *gin.Context, retryParam *RetryParam) bool {
 		return false
 	}
 	return retryParam.HasFallbackChannel()
+}
+
+// channelCircuitReasonRunes keeps the last failure shown in the channel list
+// tooltip readable.
+const channelCircuitReasonRunes = 200
+
+// RecordChannelHealth feeds one relay attempt into the channel's circuit: a
+// success ends its failure run, a channel failure extends it and may open it.
+func RecordChannelHealth(c *gin.Context, channelID int, err *types.NewAPIError) {
+	if err == nil {
+		if model.RecordChannelSuccess(channelID) {
+			logger.LogInfo(c, common.LogText("channel #%d circuit closed: a request succeeded", channelID))
+		}
+		return
+	}
+	if !isChannelFailure(c, err) {
+		return
+	}
+	reason := err.MaskSensitiveErrorWithStatusCode(common.UpstreamAddresses(c)...)
+	if runes := []rune(reason); len(runes) > channelCircuitReasonRunes {
+		reason = string(runes[:channelCircuitReasonRunes]) + "…"
+	}
+	if model.RecordChannelFailure(channelID, reason) {
+		logger.LogWarn(c, common.LogText("channel #%d circuit open after %d consecutive failures, last: %s", channelID, common.ChannelCircuitFailureThreshold, reason))
+	}
+}
+
+// isChannelFailure reports whether a failed attempt counts against the
+// channel: timeouts, transport and channel errors, and upstream 401, 403, 408,
+// 429 or 5xx answers. A request the client abandoned does not count, nor one
+// the gateway or the upstream rejected as invalid, such as a 400 or a 404 for
+// a model the channel does not serve.
+func isChannelFailure(c *gin.Context, err *types.NewAPIError) bool {
+	if c != nil && c.Request != nil && c.Request.Context().Err() != nil {
+		return false
+	}
+	if types.IsChannelError(err) {
+		return true
+	}
+	switch err.GetErrorCode() {
+	case types.ErrorCodeDoRequestFailed, types.ErrorCodeFirstTokenTimeout:
+		return true
+	}
+	if types.IsSkipRetryError(err) || err.GetErrorType() == types.ErrorTypeNewAPIError {
+		return false
+	}
+	code := err.StatusCode
+	return code == http.StatusUnauthorized || code == http.StatusForbidden || code == http.StatusRequestTimeout ||
+		code == http.StatusTooManyRequests || code >= http.StatusInternalServerError
 }
 
 func ShouldRetryRelayError(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) bool {

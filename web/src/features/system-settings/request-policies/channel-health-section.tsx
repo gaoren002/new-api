@@ -82,6 +82,16 @@ const createChannelHealthSchema = (
   z
     .object({
       ChannelDisableThreshold: numericString,
+      ChannelCircuitFailureThreshold: z.coerce
+        .number()
+        .int(t('Enter an integer between 0 and 100'))
+        .min(0, t('Enter an integer between 0 and 100'))
+        .max(100, t('Enter an integer between 0 and 100')),
+      ChannelCircuitProbeSeconds: z.coerce
+        .number()
+        .int(t('Enter an integer between 10 and 3600'))
+        .min(10, t('Enter an integer between 10 and 3600'))
+        .max(3600, t('Enter an integer between 10 and 3600')),
       AutomaticDisableChannelEnabled: z.boolean(),
       AutomaticEnableChannelEnabled: z.boolean(),
       AutomaticDisableKeywords: z.string(),
@@ -132,6 +142,8 @@ function normalizeLineEndings(value: string) {
 
 type NormalizedChannelHealthValues = {
   ChannelDisableThreshold: string
+  ChannelCircuitFailureThreshold: number
+  ChannelCircuitProbeSeconds: number
   AutomaticDisableChannelEnabled: boolean
   AutomaticEnableChannelEnabled: boolean
   AutomaticDisableKeywords: string
@@ -153,6 +165,8 @@ const buildFormDefaults = (
   defaults: ChannelHealthSectionProps['defaultValues']
 ): ChannelHealthFormInput => ({
   ChannelDisableThreshold: defaults.ChannelDisableThreshold ?? '',
+  ChannelCircuitFailureThreshold: defaults.ChannelCircuitFailureThreshold,
+  ChannelCircuitProbeSeconds: defaults.ChannelCircuitProbeSeconds,
   AutomaticDisableChannelEnabled: defaults.AutomaticDisableChannelEnabled,
   AutomaticEnableChannelEnabled: defaults.AutomaticEnableChannelEnabled,
   AutomaticDisableKeywords: normalizeLineEndings(
@@ -176,6 +190,8 @@ const normalizeDefaults = (
   defaults: ChannelHealthSectionProps['defaultValues']
 ): NormalizedChannelHealthValues => ({
   ChannelDisableThreshold: (defaults.ChannelDisableThreshold ?? '').trim(),
+  ChannelCircuitFailureThreshold: defaults.ChannelCircuitFailureThreshold,
+  ChannelCircuitProbeSeconds: defaults.ChannelCircuitProbeSeconds,
   AutomaticDisableChannelEnabled: defaults.AutomaticDisableChannelEnabled,
   AutomaticEnableChannelEnabled: defaults.AutomaticEnableChannelEnabled,
   AutomaticDisableKeywords: normalizeLineEndings(
@@ -199,6 +215,8 @@ const normalizeFormValues = (
   values: ChannelHealthFormValues
 ): NormalizedChannelHealthValues => ({
   ChannelDisableThreshold: values.ChannelDisableThreshold.trim(),
+  ChannelCircuitFailureThreshold: values.ChannelCircuitFailureThreshold,
+  ChannelCircuitProbeSeconds: values.ChannelCircuitProbeSeconds,
   AutomaticDisableChannelEnabled: values.AutomaticDisableChannelEnabled,
   AutomaticEnableChannelEnabled: values.AutomaticEnableChannelEnabled,
   AutomaticDisableKeywords: normalizeLineEndings(
@@ -481,6 +499,65 @@ export function ChannelHealthSection({
                       />
                     </FormControl>
                   </SettingsSwitchItem>
+                )}
+              />
+            </SettingsFormGrid>
+          </div>
+
+          <Separator />
+
+          <div className='flex min-w-0 flex-col gap-4'>
+            <h4 className='text-sm font-medium'>{t('Circuit breaker')}</h4>
+            <SettingsFormGrid>
+              <FormField
+                control={form.control}
+                name='ChannelCircuitFailureThreshold'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t('Consecutive failures to open the circuit')}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={0}
+                        max={100}
+                        step={1}
+                        {...safeNumberFieldProps(field)}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        'A channel that fails this many times in a row, timeouts included, is skipped for every model another channel can serve. 0 turns the circuit breaker off.'
+                      )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='ChannelCircuitProbeSeconds'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Circuit probe interval (seconds)')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={10}
+                        max={3600}
+                        step={1}
+                        {...safeNumberFieldProps(field)}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        'How often a channel with an open circuit is tested in the background. One successful test restores it.'
+                      )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
                 )}
               />
             </SettingsFormGrid>

@@ -22,9 +22,11 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
+
+import { api } from '@/lib/api'
 
 import { channelSchema, type Channel } from '../../types'
 import { useChannelsColumns } from '../channels-columns'
@@ -74,4 +76,100 @@ test('keeps the long string inside the status tooltip is wrapped when show', asy
   expect(await screen.findByText(reason, { exact: false })).toHaveClass(
     'wrap-anywhere'
   )
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+test('an enabled channel with an open circuit shows the circuit badge and why', async () => {
+  vi.spyOn(api, 'get').mockImplementation(async (url) => {
+    if (url !== '/api/channel/circuits') {
+      return { data: { success: true, data: [] } }
+    }
+    return {
+      data: {
+        success: true,
+        data: {
+          failure_threshold: 3,
+          probe_seconds: 60,
+          items: [
+            {
+              channel_id: 7,
+              failures: 3,
+              last_failure: 'first_token_timeout (504)',
+              opened_at: 1_793_000_000,
+            },
+          ],
+        },
+      },
+    }
+  })
+  const channelItem = channelSchema.parse({
+    id: 7,
+    type: 1,
+    key: 'test-key',
+    name: 'Broken-Channel',
+    status: 1,
+    created_time: 1,
+    test_time: 0,
+    response_time: 0,
+    balance_updated_time: 0,
+  })
+  const queryClient = new QueryClient()
+  const user = userEvent.setup()
+
+  render(
+    <QueryClientProvider client={queryClient}>
+      <ChannelsProvider>
+        <ExampleAutoDisabledStatusCell channel={channelItem} />
+      </ChannelsProvider>
+    </QueryClientProvider>
+  )
+
+  await user.hover(await screen.findByText('Circuit open'))
+
+  expect(
+    await screen.findByText('first_token_timeout (504)', { exact: false })
+  ).toBeVisible()
+  expect(screen.queryByText('Enabled')).not.toBeInTheDocument()
+})
+
+test('an enabled channel without an open circuit keeps the enabled badge', async () => {
+  vi.spyOn(api, 'get').mockResolvedValue({
+    data: {
+      success: true,
+      data: { failure_threshold: 3, probe_seconds: 60, items: [] },
+    },
+  })
+  const channelItem = channelSchema.parse({
+    id: 8,
+    type: 1,
+    key: 'test-key',
+    name: 'Healthy-Channel',
+    status: 1,
+    created_time: 1,
+    test_time: 0,
+    response_time: 0,
+    balance_updated_time: 0,
+  })
+  const queryClient = new QueryClient()
+
+  render(
+    <QueryClientProvider client={queryClient}>
+      <ChannelsProvider>
+        <ExampleAutoDisabledStatusCell channel={channelItem} />
+      </ChannelsProvider>
+    </QueryClientProvider>
+  )
+
+  await waitFor(() =>
+    expect(api.get).toHaveBeenCalledWith(
+      '/api/channel/circuits',
+      expect.anything()
+    )
+  )
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+  expect(screen.getByText('Enabled')).toBeVisible()
+  expect(screen.queryByText('Circuit open')).not.toBeInTheDocument()
 })

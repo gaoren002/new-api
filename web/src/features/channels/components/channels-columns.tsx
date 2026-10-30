@@ -62,6 +62,7 @@ import { truncateText } from '@/lib/utils'
 
 import { getCodexUsage, updateChannelBalance } from '../api'
 import {
+  CHANNEL_STATUS,
   CHANNEL_STATUS_CONFIG,
   CHANNEL_TYPE_TASK_PLUGIN,
   CHANNEL_TYPE_VLLM,
@@ -86,6 +87,7 @@ import {
   isTagAggregateRow,
   type TagRow,
 } from '../lib'
+import { useChannelCircuits } from '../hooks/use-channel-circuits'
 import { parseUpstreamUpdateMeta } from '../lib/upstream-update-utils'
 import type { Channel } from '../types'
 import { ChannelRowActionsLayoutContext } from './channel-row-actions-context'
@@ -338,6 +340,66 @@ const SENSITIVE_MASK = '••••'
 /**
  * Balance cell component with click to update
  */
+/**
+ * Status of an enabled channel. While its circuit is open the channel is
+ * skipped for every model another channel can serve, so the badge says so and
+ * the tooltip explains when it comes back.
+ */
+function EnabledStatusCell(props: {
+  channel: Channel
+  label: string
+  variant: StatusBadgeProps['variant']
+}) {
+  const { t } = useTranslation()
+  const circuits = useChannelCircuits()
+  const circuit = circuits.byChannelId.get(props.channel.id)
+  if (!circuit) {
+    return (
+      <StatusBadge
+        label={props.label}
+        variant={props.variant}
+        size='sm'
+        copyable={false}
+      />
+    )
+  }
+  return (
+    <TooltipProvider delay={100}>
+      <Tooltip>
+        <TooltipTrigger render={<span />}>
+          <StatusBadge
+            label={t('Circuit open')}
+            variant='warning'
+            size='sm'
+            copyable={false}
+          />
+        </TooltipTrigger>
+        <TooltipContent side='top' className='max-w-xs'>
+          <div className='space-y-1 text-xs'>
+            <div>
+              {t(
+                'Skipped while another channel can serve the request. Tested every {{seconds}} seconds; one successful test restores it.',
+                { seconds: circuits.probeSeconds }
+              )}
+            </div>
+            <div>
+              {t('Consecutive failures:')} {circuit.failures}
+            </div>
+            {circuit.last_failure && (
+              <div className='wrap-anywhere'>
+                {t('Last failure:')} {circuit.last_failure}
+              </div>
+            )}
+            <div>
+              {t('Since:')} {formatTimestampToDate(circuit.opened_at)}
+            </div>
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
 export function BalanceCell({ channel }: { channel: Channel }) {
   const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
@@ -1042,6 +1104,16 @@ export function useChannelsColumns(
                 </TooltipProvider>
               )
             }
+          }
+
+          if (status === CHANNEL_STATUS.ENABLED) {
+            return (
+              <EnabledStatusCell
+                channel={channel}
+                label={label}
+                variant={config.variant}
+              />
+            )
           }
 
           return (

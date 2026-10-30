@@ -7376,6 +7376,18 @@
     "A streaming attempt that receives no data within this time fails over to the next channel. It only applies while another channel can take over. 0 disables it.": "Une tentative en streaming qui ne reçoit aucune donnée de l'amont dans ce délai échoue et passe au canal suivant. Ne s'applique que si un autre canal peut prendre le relais. 0 désactive ce délai.",
     "Every channel gets one attempt first; retries are spent only on the last channel.": "Chaque canal est d'abord essayé une fois, sans compter comme une nouvelle tentative ; les nouvelles tentatives ne portent que sur le dernier canal.",
     "Non-streaming timeout (seconds)": "Délai hors streaming (secondes)",
-    "A non-streaming attempt that receives no response within this time fails over to the next channel. It only applies while another channel can take over. Keep it above your slowest normal response. 0 disables it.": "Une tentative hors streaming qui ne reçoit aucune réponse dans ce délai échoue et passe au canal suivant. Ne s'applique que si un autre canal peut prendre le relais. Gardez-le au-dessus de la réponse normale la plus lente. 0 désactive ce délai."
+    "A non-streaming attempt that receives no response within this time fails over to the next channel. It only applies while another channel can take over. Keep it above your slowest normal response. 0 disables it.": "Une tentative hors streaming qui ne reçoit aucune réponse dans ce délai échoue et passe au canal suivant. Ne s'applique que si un autre canal peut prendre le relais. Gardez-le au-dessus de la réponse normale la plus lente. 0 désactive ce délai.",
+    "Circuit open": "Circuit ouvert",
+    "Skipped while another channel can serve the request. Tested every {{seconds}} seconds; one successful test restores it.": "Ignoré tant qu'un autre canal peut traiter la requête. Testé toutes les {{seconds}} secondes ; un test réussi le rétablit.",
+    "Consecutive failures:": "Échecs consécutifs :",
+    "Last failure:": "Dernier échec :",
+    "Since:": "Depuis :",
+    "Circuit breaker": "Disjoncteur",
+    "Consecutive failures to open the circuit": "Échecs consécutifs avant ouverture du circuit",
+    "A channel that fails this many times in a row, timeouts included, is skipped for every model another channel can serve. 0 turns the circuit breaker off.": "Un canal qui échoue autant de fois de suite, délais d'attente compris, est ignoré pour chaque modèle qu'un autre canal peut servir. 0 désactive le disjoncteur.",
+    "Circuit probe interval (seconds)": "Intervalle de test du circuit (secondes)",
+    "How often a channel with an open circuit is tested in the background. One successful test restores it.": "Fréquence à laquelle un canal au circuit ouvert est testé en arrière-plan. Un test réussi le rétablit.",
+    "Enter an integer between 0 and 100": "Saisissez un entier entre 0 et 100",
+    "Enter an integer between 10 and 3600": "Saisissez un entier entre 10 et 3600"
   }
 }

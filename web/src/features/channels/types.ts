@@ -183,6 +183,25 @@ export interface GetChannelResponse {
   data?: Channel
 }
 
+/** A channel skipped by the circuit breaker after consecutive failures. */
+export interface ChannelCircuit {
+  channel_id: number
+  failures: number
+  last_failure: string
+  opened_at: number
+  probed_at?: number
+}
+
+export interface ChannelCircuitsResponse {
+  success: boolean
+  message?: string
+  data?: {
+    failure_threshold: number
+    probe_seconds: number
+    items: ChannelCircuit[]
+  }
+}
+
 export interface ChannelOpsResponse {
   success: boolean
   message?: string

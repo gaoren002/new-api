@@ -903,6 +903,9 @@ func TestChannel(c *gin.Context) {
 		})
 		return
 	}
+	if model.RecordChannelSuccess(channel.Id) {
+		common.SysLog(common.LogText("channel #%d circuit closed: manual test succeeded", channel.Id))
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
@@ -953,6 +956,9 @@ func testChannelForHealthCheck(ctx context.Context, channel *model.Channel, test
 
 	if newAPIError == nil {
 		summary.Succeeded++
+		if result.localErr == nil && model.RecordChannelSuccess(channel.Id) {
+			common.SysLog(common.LogText("channel #%d circuit closed: scheduled test succeeded", channel.Id))
+		}
 	} else {
 		summary.Failed++
 	}

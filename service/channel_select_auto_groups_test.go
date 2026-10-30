@@ -276,3 +276,47 @@ func TestFallbackAvailableOnlyWhileAnotherChannelCanTakeOver(t *testing.T) {
 		})
 	}
 }
+
+func TestOpenCircuitSitsOutWhileAHealthyChannelServes(t *testing.T) {
+	db := setupChannelSelectAutoGroupsTest(t)
+	const modelName = "circuit-chain-model"
+	createChannelSelectAutoGroupsChannel(t, db, 2241, "default", modelName, 30)
+	createChannelSelectAutoGroupsChannel(t, db, 2242, "default", modelName, 20)
+	createChannelSelectAutoGroupsChannel(t, db, 2243, "single", modelName, 0)
+	model.InitChannelCache()
+	common.RetryTimes = 1
+	previousThreshold := common.ChannelCircuitFailureThreshold
+	common.ChannelCircuitFailureThreshold = 3
+	t.Cleanup(func() {
+		common.ChannelCircuitFailureThreshold = previousThreshold
+		model.ResetChannelCircuits()
+	})
+	openCircuit := func(channelID int) {
+		for i := range 3 {
+			assert.Equal(t, i == 2, model.RecordChannelFailure(channelID, "first_token_timeout (504)"), "the third failure in a row opens the circuit")
+		}
+	}
+	chain := func(group string) []int {
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		channels, _ := runFallbackChain(t, &RetryParam{Ctx: ctx, TokenGroup: group, ModelName: modelName, Retry: common.GetPointer(0)})
+		return channels
+	}
+
+	openCircuit(2241)
+	assert.Equal(t, []int{2242, 2242}, chain("default"), "the open channel sits out even after the healthy one failed; the retry stays on the healthy one")
+
+	openCircuit(2243)
+	assert.Equal(t, []int{2243, 2243}, chain("single"), "a channel with no alternative keeps serving its model")
+
+	openCircuit(2242)
+	assert.Equal(t, []int{2241, 2242, 2242}, chain("default"), "with every candidate open they are all tried by priority")
+
+	assert.True(t, model.RecordChannelSuccess(2241), "a success closes the circuit")
+	assert.False(t, model.IsChannelCircuitOpen(2241))
+	assert.Equal(t, []int{2241, 2241}, chain("default"))
+
+	common.ChannelCircuitFailureThreshold = 0
+	assert.False(t, model.IsChannelCircuitOpen(2242), "turning the breaker off closes every circuit")
+	assert.Empty(t, model.OpenChannelCircuits())
+	assert.False(t, model.RecordChannelFailure(2241, "bad_response_status_code (502)"))
+}

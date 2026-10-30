@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -279,4 +280,62 @@ func TestRequestPolicyEventsReachLogAdminInfo(t *testing.T) {
 	other := model.NewLogOther()
 	AppendRelayLogAdminInfo(untouched, nil, other)
 	assert.NotContains(t, other.Snapshot()["admin_info"], "request_policy", "requests without decisions do not carry an empty record")
+}
+
+func TestRecordChannelHealthCountsOnlyChannelFailures(t *testing.T) {
+	previousThreshold := common.ChannelCircuitFailureThreshold
+	common.ChannelCircuitFailureThreshold = 3
+	t.Cleanup(func() {
+		common.ChannelCircuitFailureThreshold = previousThreshold
+		model.ResetChannelCircuits()
+	})
+	upstream := func(status int) *types.NewAPIError {
+		return types.NewOpenAIError(errors.New("upstream"), types.ErrorCodeBadResponseStatusCode, status)
+	}
+	newContext := func(abandoned bool) *gin.Context {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+		if abandoned {
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			c.Request = c.Request.WithContext(ctx)
+		}
+		return c
+	}
+	for _, tc := range []struct {
+		name      string
+		err       *types.NewAPIError
+		abandoned bool
+		counts    bool
+	}{
+		{name: "upstream 502", err: upstream(http.StatusBadGateway), counts: true},
+		{name: "upstream 429", err: upstream(http.StatusTooManyRequests), counts: true},
+		{name: "upstream 401", err: upstream(http.StatusUnauthorized), counts: true},
+		{name: "first token timeout", err: types.NewOpenAIError(errors.New("no data"), types.ErrorCodeFirstTokenTimeout, http.StatusGatewayTimeout), counts: true},
+		{name: "transport failure", err: types.NewError(errors.New("dial tcp: i/o timeout"), types.ErrorCodeDoRequestFailed), counts: true},
+		{name: "channel error", err: types.NewError(errors.New("no key"), types.ErrorCodeChannelNoAvailableKey), counts: true},
+		{name: "upstream 400", err: upstream(http.StatusBadRequest), counts: false},
+		{name: "model the channel does not serve", err: upstream(http.StatusNotFound), counts: false},
+		{name: "gateway rejection", err: types.NewError(errors.New("bad json"), types.ErrorCodeJsonMarshalFailed), counts: false},
+		{name: "non-retryable upstream error", err: types.NewOpenAIError(errors.New("blocked"), types.ErrorCodeBadResponseStatusCode, http.StatusInternalServerError, types.ErrOptionWithSkipRetry()), counts: false},
+		{name: "request the client abandoned", err: upstream(http.StatusBadGateway), abandoned: true, counts: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			model.ResetChannelCircuits()
+			for range 3 {
+				RecordChannelHealth(newContext(tc.abandoned), 7, tc.err)
+			}
+			assert.Equal(t, tc.counts, model.IsChannelCircuitOpen(7))
+		})
+	}
+
+	t.Run("a success in between restarts the run", func(t *testing.T) {
+		model.ResetChannelCircuits()
+		for _, err := range []*types.NewAPIError{upstream(http.StatusBadGateway), upstream(http.StatusBadGateway), nil, upstream(http.StatusBadGateway), upstream(http.StatusBadGateway)} {
+			RecordChannelHealth(newContext(false), 7, err)
+		}
+		assert.False(t, model.IsChannelCircuitOpen(7))
+		RecordChannelHealth(newContext(false), 7, upstream(http.StatusBadGateway))
+		assert.True(t, model.IsChannelCircuitOpen(7))
+	})
 }

@@ -217,3 +217,72 @@ func TestRequestPolicyRoutingDatabaseMatrix(t *testing.T) {
 		})
 	}
 }
+
+func TestOpenCircuitMovesPreferSessionsButKeepsStrictOnes(t *testing.T) {
+	require.NoError(t, i18n.Init())
+	db := modelManagementDB(t, "sqlite", "")
+	previousGroups := setting.UserUsableGroups2JSONString()
+	previousRatios, err := common.Marshal(ratio_setting.GetGroupRatioCopy())
+	require.NoError(t, err)
+	require.NoError(t, setting.UpdateUserUsableGroupsByJSONString(`{"default":"Default"}`))
+	require.NoError(t, ratio_setting.UpdateGroupRatioByJSONString(`{"default":1}`))
+	previousThreshold, previousCache := common.ChannelCircuitFailureThreshold, common.MemoryCacheEnabled
+	common.ChannelCircuitFailureThreshold = 3
+	t.Cleanup(func() {
+		require.NoError(t, setting.UpdateUserUsableGroupsByJSONString(previousGroups))
+		require.NoError(t, ratio_setting.UpdateGroupRatioByJSONString(string(previousRatios)))
+		common.ChannelCircuitFailureThreshold, common.MemoryCacheEnabled = previousThreshold, previousCache
+		model.ResetChannelCircuits()
+	})
+	// Channel 1 holds the session binding and stays enabled, but its circuit opens.
+	channels := []model.Channel{
+		{Id: 1, Name: "A", Type: 1, Key: "test-only", Status: common.ChannelStatusEnabled, Models: "circuit-test", Group: "default", Priority: common.GetPointer(int64(10))},
+		{Id: 2, Name: "B", Type: 1, Key: "test-only", Status: common.ChannelStatusEnabled, Models: "circuit-test", Group: "default", Priority: common.GetPointer(int64(5))},
+	}
+	for i := range channels {
+		require.NoError(t, db.Create(&channels[i]).Error)
+		require.NoError(t, channels[i].AddAbilities(db))
+	}
+	common.MemoryCacheEnabled = true
+	model.InitChannelCache()
+	affinity := operation_setting.GetChannelAffinitySetting()
+	previousAffinity := *affinity
+	t.Cleanup(func() { *affinity = previousAffinity })
+
+	for _, tc := range []struct {
+		mode string
+		want int
+	}{
+		{mode: "prefer", want: 2},
+		{mode: "strict", want: 1},
+	} {
+		t.Run(tc.mode, func(t *testing.T) {
+			snapshot, err := model.BuildRequestPolicy(map[string]string{
+				"channel_affinity_setting.enabled": "true",
+				"channel_affinity_setting.rules":   fmt.Sprintf(`[{"name":"session","model_regex":[".*"],"key_sources":[{"type":"request_header","key":"X-Session"}],"session_mode":%q}]`, tc.mode),
+			})
+			require.NoError(t, err)
+			*affinity = snapshot.Affinity
+			seed := newPinRetryContext()
+			seed.Request.Header.Set("X-Session", t.Name())
+			_, _ = service.GetPreferredChannelByAffinity(seed, "circuit-test", "default")
+			seed.Set("channel_id", 1)
+			service.RecordChannelAffinity(seed, 1)
+			t.Cleanup(func() { service.ClearCurrentChannelAffinityCache(seed) })
+			model.ResetChannelCircuits()
+			for range 3 {
+				model.RecordChannelFailure(1, "bad_response_status_code (502)")
+			}
+			require.True(t, model.IsChannelCircuitOpen(1))
+
+			request := newPinRetryContext()
+			request.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"circuit-test"}`))
+			request.Request.Header.Set("Content-Type", "application/json")
+			request.Request.Header.Set("X-Session", t.Name())
+			common.SetContextKey(request, constant.ContextKeyUsingGroup, "default")
+			middleware.Distribute()(request)
+			require.False(t, request.IsAborted())
+			assert.Equal(t, tc.want, common.GetContextKeyInt(request, constant.ContextKeyChannelId))
+		})
+	}
+}

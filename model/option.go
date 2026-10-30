@@ -180,6 +180,8 @@ func InitOptionMap() {
 	common.OptionMap["RetryTimes"] = strconv.Itoa(common.RetryTimes)
 	common.OptionMap["FirstTokenTimeoutSeconds"] = strconv.Itoa(common.FirstTokenTimeoutSeconds)
 	common.OptionMap["NonStreamTimeoutSeconds"] = strconv.Itoa(common.NonStreamTimeoutSeconds)
+	common.OptionMap["ChannelCircuitFailureThreshold"] = strconv.Itoa(common.ChannelCircuitFailureThreshold)
+	common.OptionMap["ChannelCircuitProbeSeconds"] = strconv.Itoa(common.ChannelCircuitProbeSeconds)
 	common.OptionMap["DataExportInterval"] = strconv.Itoa(common.DataExportInterval)
 	common.OptionMap["DataExportDefaultTime"] = common.DataExportDefaultTime
 	common.OptionMap["DefaultCollapseSidebar"] = strconv.FormatBool(common.DefaultCollapseSidebar)
@@ -796,6 +798,13 @@ func updateOptionMap(key string, value string) (err error) {
 		common.FirstTokenTimeoutSeconds, _ = strconv.Atoi(value)
 	case "NonStreamTimeoutSeconds":
 		common.NonStreamTimeoutSeconds, _ = strconv.Atoi(value)
+	case "ChannelCircuitFailureThreshold":
+		common.ChannelCircuitFailureThreshold, _ = strconv.Atoi(value)
+		if common.ChannelCircuitFailureThreshold <= 0 {
+			ResetChannelCircuits()
+		}
+	case "ChannelCircuitProbeSeconds":
+		common.ChannelCircuitProbeSeconds, _ = strconv.Atoi(value)
 	case "DataExportInterval":
 		common.DataExportInterval, _ = strconv.Atoi(value)
 	case "DataExportDefaultTime":

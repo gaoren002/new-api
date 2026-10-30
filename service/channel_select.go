@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -134,10 +135,22 @@ func (p *RetryParam) nextChannel() (channel *model.Channel, group string, repeat
 	for _, attempt := range p.attempts {
 		tried = append(tried, attempt.channelID)
 	}
-	for _, group = range groups {
-		channel, err = model.GetRandomSatisfiedChannel(group, p.ModelName, tried, filters)
-		if err != nil || channel != nil {
-			return channel, group, false, err
+	var open []int
+	for _, circuit := range model.OpenChannelCircuits() {
+		open = append(open, circuit.ChannelID)
+	}
+	if channel, group, err = p.pickChannel(groups, append(slices.Clone(tried), open...), filters); err != nil || channel != nil {
+		return channel, group, false, err
+	}
+	// Channels with an open circuit sit out while any healthy channel serves the
+	// model, even one this request already tried, so the retry budget goes to a
+	// healthy channel. Only when every candidate is open are they tried too.
+	if len(open) > 0 {
+		healthy, _, healthyErr := p.pickChannel(groups, open, filters)
+		if healthyErr == nil && healthy == nil {
+			if channel, group, err = p.pickChannel(groups, tried, filters); err != nil || channel != nil {
+				return channel, group, false, err
+			}
 		}
 	}
 	if len(groups) > 0 {
@@ -153,6 +166,18 @@ func (p *RetryParam) nextChannel() (channel *model.Channel, group string, repeat
 		return nil, last.group, false, nil
 	}
 	return channel, last.group, true, nil
+}
+
+// pickChannel selects from the first of groups that has a candidate outside
+// excluded.
+func (p *RetryParam) pickChannel(groups []string, excluded []int, filters []dto.ChannelFilter) (*model.Channel, string, error) {
+	for _, group := range groups {
+		channel, err := model.GetRandomSatisfiedChannel(group, p.ModelName, excluded, filters)
+		if err != nil || channel != nil {
+			return channel, group, err
+		}
+	}
+	return nil, "", nil
 }
 
 // chainGroups lists the groups the fallback chain may select from, in order.
@@ -291,7 +316,11 @@ func SelectChannelForRequest(c *gin.Context, modelName string, retry *RetryParam
 			affinityUsable := false
 			preferred, err := model.CacheGetChannel(preferredChannelID)
 			affinitySatisfied := false
-			if err == nil && preferred != nil && preferred.Status == common.ChannelStatusEnabled {
+			// A strict session stays on its channel; any other session leaves a
+			// channel whose circuit is open and rebinds where it succeeds.
+			usable := err == nil && preferred != nil && preferred.Status == common.ChannelStatusEnabled &&
+				(RequestPolicy(c).SessionMode == "strict" || !model.IsChannelCircuitOpen(preferred.Id))
+			if usable {
 				affinitySatisfied, _ = model.ChannelSatisfiesFilters(preferred, modelName, constraints.Filters)
 			}
 			if affinitySatisfied {

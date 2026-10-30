@@ -28,6 +28,7 @@ import type {
   BatchSetTagParams,
   Channel,
   ChannelBalanceResponse,
+  ChannelCircuitsResponse,
   ChannelOpsResponse,
   ChannelTestResponse,
   CopyChannelParams,
@@ -172,6 +173,14 @@ export async function getChannelOps(
       params: autoBan === undefined ? undefined : { auto_ban: autoBan },
     })
   )
+  return res.data
+}
+
+/**
+ * Get the channels whose circuit is open on the instance serving the console
+ */
+export async function getChannelCircuits(): Promise<ChannelCircuitsResponse> {
+  const res = await api.get('/api/channel/circuits', channelActionConfig())
   return res.data
 }
 

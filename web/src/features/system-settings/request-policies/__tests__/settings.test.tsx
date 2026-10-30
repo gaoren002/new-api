@@ -212,6 +212,20 @@ describe('request policy settings', () => {
       'monitor_setting.channel_test_concurrency',
       4,
     ],
+    [
+      'health',
+      'Consecutive failures to open the circuit',
+      '5',
+      'ChannelCircuitFailureThreshold',
+      5,
+    ],
+    [
+      'health',
+      'Circuit probe interval (seconds)',
+      '30',
+      'ChannelCircuitProbeSeconds',
+      30,
+    ],
   ])(
     'saving a changed %s field writes only that original option key',
     async (section, label, input, key, value) => {

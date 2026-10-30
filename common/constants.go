@@ -157,6 +157,15 @@ var FirstTokenTimeoutSeconds = 50
 // normal response. Task submissions are not timed. 0 disables it.
 var NonStreamTimeoutSeconds = 50
 
+// ChannelCircuitFailureThreshold opens a channel's circuit after this many
+// consecutive relay failures, timeouts included: the channel is then skipped
+// for a group and model while another channel serves them. 0 disables it.
+var ChannelCircuitFailureThreshold = 3
+
+// ChannelCircuitProbeSeconds is how often a channel with an open circuit is
+// tested in the background; the first successful test closes the circuit.
+var ChannelCircuitProbeSeconds = 60
+
 //var RootUserEmail = ""
 
 var IsMasterNode bool
