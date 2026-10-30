@@ -7710,15 +7710,15 @@
     "Non-streaming timeout (seconds)": "非流式超时（秒）",
     "A non-streaming attempt that receives no response within this time fails over to the next channel. It only applies while another channel can take over. Keep it above your slowest normal response. 0 disables it.": "非流式请求在这段时间内没收到上游任何响应，就判定失败并换下一个渠道。只在还有其他渠道可换时生效。要大于正常请求的最长耗时。0 表示关闭。",
     "Circuit open": "熔断中",
-    "Skipped while another channel can serve the request. Tested every {{seconds}} seconds; one successful test restores it.": "有其他渠道可用时跳过此渠道。每 {{seconds}} 秒检测一次，成功一次即恢复。",
+    "Skipped for these models while another channel serves them. Each is tested every {{seconds}} seconds; one successful test restores it.": "以下模型有其他渠道可用时跳过此渠道。每个模型每 {{seconds}} 秒检测一次，成功一次即恢复。",
     "Consecutive failures:": "连续失败：",
     "Last failure:": "最近一次失败：",
     "Since:": "开始时间：",
     "Circuit breaker": "熔断",
     "Consecutive failures to open the circuit": "触发熔断的连续失败次数",
-    "A channel that fails this many times in a row, timeouts included, is skipped for every model another channel can serve. 0 turns the circuit breaker off.": "渠道连续失败这么多次（超时也算）后，在有其他渠道可用的模型上暂时跳过它。0 表示关闭熔断。",
+    "A channel that fails this many times in a row for a model, timeouts included, is skipped for that model while another channel serves it. Its other models are not affected. 0 turns the circuit breaker off.": "渠道在某个模型上连续失败这么多次（超时也算）后，该模型有其他渠道可用时暂时跳过它，不影响它的其他模型。0 表示关闭熔断。",
     "Circuit probe interval (seconds)": "熔断检测间隔（秒）",
-    "How often a channel with an open circuit is tested in the background. One successful test restores it.": "熔断中的渠道在后台多久测试一次。测试成功一次即恢复。",
+    "How often a channel is tested in the background with each model whose circuit is open. One successful test restores that model.": "熔断中的模型多久在后台用该渠道测试一次。成功一次即恢复该模型。",
     "Enter an integer between 0 and 100": "请输入 0 到 100 之间的整数",
     "Enter an integer between 10 and 3600": "请输入 10 到 3600 之间的整数"
   }

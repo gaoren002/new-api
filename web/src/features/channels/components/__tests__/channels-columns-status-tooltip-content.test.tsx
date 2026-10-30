@@ -82,7 +82,7 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-test('an enabled channel with an open circuit shows the circuit badge and why', async () => {
+test('an enabled channel with open circuits lists each model it is skipped for', async () => {
   vi.spyOn(api, 'get').mockImplementation(async (url) => {
     if (url !== '/api/channel/circuits') {
       return { data: { success: true, data: [] } }
@@ -96,9 +96,24 @@ test('an enabled channel with an open circuit shows the circuit badge and why', 
           items: [
             {
               channel_id: 7,
+              model: 'claude-fable-5-1',
               failures: 3,
               last_failure: 'first_token_timeout (504)',
               opened_at: 1_793_000_000,
+            },
+            {
+              channel_id: 7,
+              model: 'claude-sonnet-4-6',
+              failures: 4,
+              last_failure: 'bad_response_status_code (503)',
+              opened_at: 1_793_000_100,
+            },
+            {
+              channel_id: 9,
+              model: 'gpt-4o',
+              failures: 3,
+              last_failure: 'another channel',
+              opened_at: 1_793_000_200,
             },
           ],
         },
@@ -129,9 +144,12 @@ test('an enabled channel with an open circuit shows the circuit badge and why', 
 
   await user.hover(await screen.findByText('Circuit open'))
 
+  expect(await screen.findByText('claude-fable-5-1')).toBeVisible()
+  expect(screen.getByText('claude-sonnet-4-6')).toBeVisible()
   expect(
-    await screen.findByText('first_token_timeout (504)', { exact: false })
+    screen.getByText('first_token_timeout (504)', { exact: false })
   ).toBeVisible()
+  expect(screen.queryByText('gpt-4o')).not.toBeInTheDocument()
   expect(screen.queryByText('Enabled')).not.toBeInTheDocument()
 })
 

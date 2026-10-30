@@ -288,7 +288,7 @@ func TestRecordChannelHealthCountsOnlyChannelFailures(t *testing.T) {
 	sqlDB, err := database.DB()
 	require.NoError(t, err)
 	sqlDB.SetMaxOpenConns(1)
-	require.NoError(t, database.AutoMigrate(&model.ChannelCircuit{}))
+	require.NoError(t, database.AutoMigrate(&model.ChannelModelCircuit{}))
 	previousDB, previousThreshold := model.DB, common.ChannelCircuitFailureThreshold
 	model.DB = database
 	common.ChannelCircuitFailureThreshold = 3
@@ -331,19 +331,19 @@ func TestRecordChannelHealthCountsOnlyChannelFailures(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			require.NoError(t, model.ResetChannelCircuits())
 			for range 3 {
-				RecordChannelHealth(newContext(tc.abandoned), 7, tc.err)
+				RecordChannelHealth(newContext(tc.abandoned), 7, "test-model", tc.err)
 			}
-			assert.Equal(t, tc.counts, model.IsChannelCircuitOpen(7))
+			assert.Equal(t, tc.counts, model.IsChannelCircuitOpen(7, "test-model"))
 		})
 	}
 
 	t.Run("a success in between restarts the run", func(t *testing.T) {
 		require.NoError(t, model.ResetChannelCircuits())
 		for _, err := range []*types.NewAPIError{upstream(http.StatusBadGateway), upstream(http.StatusBadGateway), nil, upstream(http.StatusBadGateway), upstream(http.StatusBadGateway)} {
-			RecordChannelHealth(newContext(false), 7, err)
+			RecordChannelHealth(newContext(false), 7, "test-model", err)
 		}
-		assert.False(t, model.IsChannelCircuitOpen(7))
-		RecordChannelHealth(newContext(false), 7, upstream(http.StatusBadGateway))
-		assert.True(t, model.IsChannelCircuitOpen(7))
+		assert.False(t, model.IsChannelCircuitOpen(7, "test-model"))
+		RecordChannelHealth(newContext(false), 7, "test-model", upstream(http.StatusBadGateway))
+		assert.True(t, model.IsChannelCircuitOpen(7, "test-model"))
 	})
 }

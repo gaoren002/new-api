@@ -381,7 +381,7 @@ func migrateDB() error {
 		&CasbinRule{},
 		&AuthzRole{},
 		&UserAccessToken{},
-		&ChannelCircuit{},
+		&ChannelModelCircuit{},
 	)
 	if err != nil {
 		return err

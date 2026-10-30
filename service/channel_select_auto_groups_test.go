@@ -33,7 +33,7 @@ func setupChannelSelectAutoGroupsTest(t *testing.T) *gorm.DB {
 	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", strings.ReplaceAll(t.Name(), "/", "_"))
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.Channel{}, &model.Ability{}, &model.ChannelCircuit{}))
+	require.NoError(t, db.AutoMigrate(&model.Channel{}, &model.Ability{}, &model.ChannelModelCircuit{}))
 	model.DB = db
 	common.MemoryCacheEnabled = true
 	common.RetryTimes = 0
@@ -291,9 +291,9 @@ func TestOpenCircuitSitsOutWhileAHealthyChannelServes(t *testing.T) {
 		common.ChannelCircuitFailureThreshold = previousThreshold
 		require.NoError(t, model.ResetChannelCircuits())
 	})
-	openCircuit := func(channelID int) {
+	openCircuit := func(channelID int, modelName string) {
 		for i := range 3 {
-			assert.Equal(t, i == 2, model.RecordChannelFailure(channelID, "first_token_timeout (504)"), "the third failure in a row opens the circuit")
+			assert.Equal(t, i == 2, model.RecordChannelFailure(channelID, modelName, "first_token_timeout (504)"), "the third failure in a row opens the circuit")
 		}
 	}
 	chain := func(group string) []int {
@@ -302,21 +302,25 @@ func TestOpenCircuitSitsOutWhileAHealthyChannelServes(t *testing.T) {
 		return channels
 	}
 
-	openCircuit(2241)
+	openCircuit(2241, "another-model")
+	assert.Equal(t, []int{2241, 2242, 2242}, chain("default"), "a circuit open for another model leaves this one alone")
+
+	openCircuit(2241, modelName)
 	assert.Equal(t, []int{2242, 2242}, chain("default"), "the open channel sits out even after the healthy one failed; the retry stays on the healthy one")
 
-	openCircuit(2243)
+	openCircuit(2243, modelName)
 	assert.Equal(t, []int{2243, 2243}, chain("single"), "a channel with no alternative keeps serving its model")
 
-	openCircuit(2242)
+	openCircuit(2242, modelName)
 	assert.Equal(t, []int{2241, 2242, 2242}, chain("default"), "with every candidate open they are all tried by priority")
 
-	assert.True(t, model.RecordChannelSuccess(2241), "a success closes the circuit")
-	assert.False(t, model.IsChannelCircuitOpen(2241))
+	assert.True(t, model.RecordChannelSuccess(2241, modelName), "a success closes the circuit")
+	assert.False(t, model.IsChannelCircuitOpen(2241, modelName))
+	assert.True(t, model.IsChannelCircuitOpen(2241, "another-model"))
 	assert.Equal(t, []int{2241, 2241}, chain("default"))
 
 	common.ChannelCircuitFailureThreshold = 0
-	assert.False(t, model.IsChannelCircuitOpen(2242), "turning the breaker off closes every circuit")
+	assert.False(t, model.IsChannelCircuitOpen(2242, modelName), "turning the breaker off closes every circuit")
 	assert.Empty(t, model.OpenChannelCircuits())
-	assert.False(t, model.RecordChannelFailure(2241, "bad_response_status_code (502)"))
+	assert.False(t, model.RecordChannelFailure(2241, modelName, "bad_response_status_code (502)"))
 }

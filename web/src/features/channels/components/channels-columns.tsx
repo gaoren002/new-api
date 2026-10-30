@@ -69,6 +69,7 @@ import {
   CHANNEL_TYPE_SGLANG,
   MODEL_FETCHABLE_TYPES,
 } from '../constants'
+import { useChannelCircuits } from '../hooks/use-channel-circuits'
 import {
   formatRelativeTime,
   formatResponseTime,
@@ -87,7 +88,6 @@ import {
   isTagAggregateRow,
   type TagRow,
 } from '../lib'
-import { useChannelCircuits } from '../hooks/use-channel-circuits'
 import { parseUpstreamUpdateMeta } from '../lib/upstream-update-utils'
 import type { Channel } from '../types'
 import { ChannelRowActionsLayoutContext } from './channel-row-actions-context'
@@ -341,9 +341,9 @@ const SENSITIVE_MASK = '••••'
  * Balance cell component with click to update
  */
 /**
- * Status of an enabled channel. While its circuit is open the channel is
- * skipped for every model another channel can serve, so the badge says so and
- * the tooltip explains when it comes back.
+ * Status of an enabled channel. While a circuit is open the channel is skipped
+ * for that model whenever another channel serves it, so the badge says so and
+ * the tooltip lists the models and when they come back.
  */
 function EnabledStatusCell(props: {
   channel: Channel
@@ -352,8 +352,8 @@ function EnabledStatusCell(props: {
 }) {
   const { t } = useTranslation()
   const circuits = useChannelCircuits()
-  const circuit = circuits.byChannelId.get(props.channel.id)
-  if (!circuit) {
+  const open = circuits.byChannelId.get(props.channel.id)
+  if (!open) {
     return (
       <StatusBadge
         label={props.label}
@@ -375,24 +375,27 @@ function EnabledStatusCell(props: {
           />
         </TooltipTrigger>
         <TooltipContent side='top' className='max-w-xs'>
-          <div className='space-y-1 text-xs'>
+          <div className='space-y-2 text-xs'>
             <div>
               {t(
-                'Skipped while another channel can serve the request. Tested every {{seconds}} seconds; one successful test restores it.',
+                'Skipped for these models while another channel serves them. Each is tested every {{seconds}} seconds; one successful test restores it.',
                 { seconds: circuits.probeSeconds }
               )}
             </div>
-            <div>
-              {t('Consecutive failures:')} {circuit.failures}
-            </div>
-            {circuit.last_failure && (
-              <div className='wrap-anywhere'>
-                {t('Last failure:')} {circuit.last_failure}
+            {open.map((circuit) => (
+              <div key={circuit.model} className='space-y-0.5'>
+                <div className='font-medium wrap-anywhere'>{circuit.model}</div>
+                <div>
+                  {t('Consecutive failures:')} {circuit.failures} ·{' '}
+                  {t('Since:')} {formatTimestampToDate(circuit.opened_at)}
+                </div>
+                {circuit.last_failure && (
+                  <div className='wrap-anywhere'>
+                    {t('Last failure:')} {circuit.last_failure}
+                  </div>
+                )}
               </div>
-            )}
-            <div>
-              {t('Since:')} {formatTimestampToDate(circuit.opened_at)}
-            </div>
+            ))}
           </div>
         </TooltipContent>
       </Tooltip>

@@ -28,14 +28,15 @@ const CIRCUITS_REFRESH_MS = 30_000
 const DEFAULT_PROBE_SECONDS = 60
 
 export type ChannelCircuits = {
-  byChannelId: Map<number, ChannelCircuit>
+  /** Open circuits of each channel, one per model it is skipped for. */
+  byChannelId: Map<number, ChannelCircuit[]>
   probeSeconds: number
 }
 
 /**
  * Open channel circuits, which every instance shares. The list refreshes in the
- * background so the channel table shows which channels are skipped; a failed
- * refresh only leaves the badges out.
+ * background so the channel table shows which channels are skipped for which
+ * models; a failed refresh only leaves the badges out.
  */
 export function useChannelCircuits(): ChannelCircuits {
   const query = useQuery({
@@ -46,13 +47,19 @@ export function useChannelCircuits(): ChannelCircuits {
     meta: { errorToast: false },
   })
   const data = query.data?.data
-  return useMemo(
-    () => ({
-      byChannelId: new Map(
-        (data?.items ?? []).map((circuit) => [circuit.channel_id, circuit])
-      ),
+  return useMemo(() => {
+    const byChannelId = new Map<number, ChannelCircuit[]>()
+    for (const circuit of data?.items ?? []) {
+      const circuits = byChannelId.get(circuit.channel_id)
+      if (circuits) {
+        circuits.push(circuit)
+      } else {
+        byChannelId.set(circuit.channel_id, [circuit])
+      }
+    }
+    return {
+      byChannelId,
       probeSeconds: data?.probe_seconds ?? DEFAULT_PROBE_SECONDS,
-    }),
-    [data]
-  )
+    }
+  }, [data])
 }

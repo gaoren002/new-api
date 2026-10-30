@@ -221,7 +221,7 @@ func TestRequestPolicyRoutingDatabaseMatrix(t *testing.T) {
 func TestOpenCircuitMovesPreferSessionsButKeepsStrictOnes(t *testing.T) {
 	require.NoError(t, i18n.Init())
 	db := modelManagementDB(t, "sqlite", "")
-	require.NoError(t, db.AutoMigrate(&model.ChannelCircuit{}))
+	require.NoError(t, db.AutoMigrate(&model.ChannelModelCircuit{}))
 	previousGroups := setting.UserUsableGroups2JSONString()
 	previousRatios, err := common.Marshal(ratio_setting.GetGroupRatioCopy())
 	require.NoError(t, err)
@@ -272,9 +272,9 @@ func TestOpenCircuitMovesPreferSessionsButKeepsStrictOnes(t *testing.T) {
 			t.Cleanup(func() { service.ClearCurrentChannelAffinityCache(seed) })
 			require.NoError(t, model.ResetChannelCircuits())
 			for range 3 {
-				model.RecordChannelFailure(1, "bad_response_status_code (502)")
+				model.RecordChannelFailure(1, "circuit-test", "bad_response_status_code (502)")
 			}
-			require.True(t, model.IsChannelCircuitOpen(1))
+			require.True(t, model.IsChannelCircuitOpen(1, "circuit-test"))
 
 			request := newPinRetryContext()
 			request.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"circuit-test"}`))

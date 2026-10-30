@@ -137,7 +137,9 @@ func (p *RetryParam) nextChannel() (channel *model.Channel, group string, repeat
 	}
 	var open []int
 	for _, circuit := range model.OpenChannelCircuits() {
-		open = append(open, circuit.ChannelID)
+		if circuit.Model == p.ModelName {
+			open = append(open, circuit.ChannelID)
+		}
 	}
 	if channel, group, err = p.pickChannel(groups, append(slices.Clone(tried), open...), filters); err != nil || channel != nil {
 		return channel, group, false, err
@@ -317,9 +319,10 @@ func SelectChannelForRequest(c *gin.Context, modelName string, retry *RetryParam
 			preferred, err := model.CacheGetChannel(preferredChannelID)
 			affinitySatisfied := false
 			// A strict session stays on its channel; any other session leaves a
-			// channel whose circuit is open and rebinds where it succeeds.
+			// channel whose circuit is open for the model and rebinds where it
+			// succeeds.
 			usable := err == nil && preferred != nil && preferred.Status == common.ChannelStatusEnabled &&
-				(RequestPolicy(c).SessionMode == "strict" || !model.IsChannelCircuitOpen(preferred.Id))
+				(RequestPolicy(c).SessionMode == "strict" || !model.IsChannelCircuitOpen(preferred.Id, modelName))
 			if usable {
 				affinitySatisfied, _ = model.ChannelSatisfiesFilters(preferred, modelName, constraints.Filters)
 			}

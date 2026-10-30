@@ -80,12 +80,13 @@ func FallbackAvailable(c *gin.Context, retryParam *RetryParam) bool {
 // tooltip readable.
 const channelCircuitReasonRunes = 200
 
-// RecordChannelHealth feeds one relay attempt into the channel's circuit: a
-// success ends its failure run, a channel failure extends it and may open it.
-func RecordChannelHealth(c *gin.Context, channelID int, err *types.NewAPIError) {
+// RecordChannelHealth feeds one relay attempt into the circuit of the channel
+// for the requested model: a success ends its failure run, a channel failure
+// extends it and may open it.
+func RecordChannelHealth(c *gin.Context, channelID int, modelName string, err *types.NewAPIError) {
 	if err == nil {
-		if model.RecordChannelSuccess(channelID) {
-			logger.LogInfo(c, common.LogText("channel #%d circuit closed: a request succeeded", channelID))
+		if model.RecordChannelSuccess(channelID, modelName) {
+			logger.LogInfo(c, common.LogText("channel #%d circuit closed for %s: a request succeeded", channelID, modelName))
 		}
 		return
 	}
@@ -96,8 +97,8 @@ func RecordChannelHealth(c *gin.Context, channelID int, err *types.NewAPIError) 
 	if runes := []rune(reason); len(runes) > channelCircuitReasonRunes {
 		reason = string(runes[:channelCircuitReasonRunes]) + "…"
 	}
-	if model.RecordChannelFailure(channelID, reason) {
-		logger.LogWarn(c, common.LogText("channel #%d circuit open after %d consecutive failures, last: %s", channelID, common.ChannelCircuitFailureThreshold, reason))
+	if model.RecordChannelFailure(channelID, modelName, reason) {
+		logger.LogWarn(c, common.LogText("channel #%d circuit open for %s after %d consecutive failures, last: %s", channelID, modelName, common.ChannelCircuitFailureThreshold, reason))
 	}
 }
 

@@ -291,7 +291,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 
 		if newAPIError == nil {
-			service.RecordChannelHealth(c, channel.Id, nil)
+			service.RecordChannelHealth(c, channel.Id, retryParam.ModelName, nil)
 			service.MarkRequestPolicySuccess(c, relayInfo.StreamStatus)
 			relayInfo.LastError = nil
 			return
@@ -316,7 +316,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 		// Count the failure first: it may open the channel's circuit, which the
 		// choice of the next channel must already see.
-		service.RecordChannelHealth(c, channel.Id, newAPIError)
+		service.RecordChannelHealth(c, channel.Id, retryParam.ModelName, newAPIError)
 		decision := service.DecideRelayRetry(c, newAPIError, retryParam.AttemptsLeft())
 		service.RecordPolicyFailure(c, channel.Id, newAPIError, decision)
 		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError, relayInfo)

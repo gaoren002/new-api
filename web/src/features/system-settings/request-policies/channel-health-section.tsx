@@ -528,7 +528,7 @@ export function ChannelHealthSection({
                     </FormControl>
                     <FormDescription>
                       {t(
-                        'A channel that fails this many times in a row, timeouts included, is skipped for every model another channel can serve. 0 turns the circuit breaker off.'
+                        'A channel that fails this many times in a row for a model, timeouts included, is skipped for that model while another channel serves it. Its other models are not affected. 0 turns the circuit breaker off.'
                       )}
                     </FormDescription>
                     <FormMessage />
@@ -541,7 +541,9 @@ export function ChannelHealthSection({
                 name='ChannelCircuitProbeSeconds'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('Circuit probe interval (seconds)')}</FormLabel>
+                    <FormLabel>
+                      {t('Circuit probe interval (seconds)')}
+                    </FormLabel>
                     <FormControl>
                       <Input
                         type='number'
@@ -553,7 +555,7 @@ export function ChannelHealthSection({
                     </FormControl>
                     <FormDescription>
                       {t(
-                        'How often a channel with an open circuit is tested in the background. One successful test restores it.'
+                        'How often a channel is tested in the background with each model whose circuit is open. One successful test restores that model.'
                       )}
                     </FormDescription>
                     <FormMessage />

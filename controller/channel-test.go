@@ -53,6 +53,22 @@ func normalizeChannelTestEndpoint(channel *model.Channel, endpointType string) s
 	return normalized
 }
 
+// channelTestModel is the model a channel test uses: the requested one, else
+// the channel's test model, else its first model. A successful test closes
+// the channel's circuit for this model.
+func channelTestModel(channel *model.Channel, requested string) string {
+	if requested = strings.TrimSpace(requested); requested != "" {
+		return requested
+	}
+	if channel.TestModel != nil && *channel.TestModel != "" {
+		return strings.TrimSpace(*channel.TestModel)
+	}
+	if models := channel.GetModels(); len(models) > 0 && strings.TrimSpace(models[0]) != "" {
+		return strings.TrimSpace(models[0])
+	}
+	return "gpt-4o-mini"
+}
+
 func resolveChannelTestUserID(c *gin.Context) (int, error) {
 	if c != nil {
 		if userID := c.GetInt("id"); userID > 0 {
@@ -94,20 +110,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 
-	testModel = strings.TrimSpace(testModel)
-	if testModel == "" {
-		if channel.TestModel != nil && *channel.TestModel != "" {
-			testModel = strings.TrimSpace(*channel.TestModel)
-		} else {
-			models := channel.GetModels()
-			if len(models) > 0 {
-				testModel = strings.TrimSpace(models[0])
-			}
-			if testModel == "" {
-				testModel = "gpt-4o-mini"
-			}
-		}
-	}
+	testModel = channelTestModel(channel, testModel)
 
 	endpointType = normalizeChannelTestEndpoint(channel, endpointType)
 
@@ -903,8 +906,8 @@ func TestChannel(c *gin.Context) {
 		})
 		return
 	}
-	if model.RecordChannelSuccess(channel.Id) {
-		common.SysLog(common.LogText("channel #%d circuit closed: manual test succeeded", channel.Id))
+	if testedModel := channelTestModel(channel, testModel); model.RecordChannelSuccess(channel.Id, testedModel) {
+		common.SysLog(common.LogText("channel #%d circuit closed for %s: manual test succeeded", channel.Id, testedModel))
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -956,8 +959,8 @@ func testChannelForHealthCheck(ctx context.Context, channel *model.Channel, test
 
 	if newAPIError == nil {
 		summary.Succeeded++
-		if result.localErr == nil && model.RecordChannelSuccess(channel.Id) {
-			common.SysLog(common.LogText("channel #%d circuit closed: scheduled test succeeded", channel.Id))
+		if testedModel := channelTestModel(channel, ""); result.localErr == nil && model.RecordChannelSuccess(channel.Id, testedModel) {
+			common.SysLog(common.LogText("channel #%d circuit closed for %s: scheduled test succeeded", channel.Id, testedModel))
 		}
 	} else {
 		summary.Failed++

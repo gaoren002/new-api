@@ -7378,15 +7378,15 @@
     "Non-streaming timeout (seconds)": "非ストリーミングのタイムアウト（秒）",
     "A non-streaming attempt that receives no response within this time fails over to the next channel. It only applies while another channel can take over. Keep it above your slowest normal response. 0 disables it.": "非ストリーミングの試行がこの時間内に上流から応答を受け取らない場合は失敗とみなし、次のチャネルに切り替えます。切り替え先のチャネルがある場合のみ適用されます。通常の最も遅い応答より長く設定してください。0 で無効になります。",
     "Circuit open": "遮断中",
-    "Skipped while another channel can serve the request. Tested every {{seconds}} seconds; one successful test restores it.": "ほかのチャネルで処理できる間はスキップされます。{{seconds}} 秒ごとにテストし、1 回成功すると復帰します。",
+    "Skipped for these models while another channel serves them. Each is tested every {{seconds}} seconds; one successful test restores it.": "これらのモデルは、ほかのチャネルで処理できる間このチャネルをスキップします。モデルごとに {{seconds}} 秒ごとにテストし、1 回成功すると復帰します。",
     "Consecutive failures:": "連続失敗:",
     "Last failure:": "直近の失敗:",
     "Since:": "開始:",
     "Circuit breaker": "サーキットブレーカー",
     "Consecutive failures to open the circuit": "遮断までの連続失敗回数",
-    "A channel that fails this many times in a row, timeouts included, is skipped for every model another channel can serve. 0 turns the circuit breaker off.": "この回数連続で失敗した（タイムアウトを含む）チャネルは、ほかのチャネルで処理できるモデルではスキップされます。0 で無効になります。",
+    "A channel that fails this many times in a row for a model, timeouts included, is skipped for that model while another channel serves it. Its other models are not affected. 0 turns the circuit breaker off.": "あるモデルでこの回数連続して失敗した（タイムアウトを含む）チャネルは、ほかのチャネルで処理できる間そのモデルではスキップされます。ほかのモデルには影響しません。0 で無効になります。",
     "Circuit probe interval (seconds)": "遮断中の検査間隔（秒）",
-    "How often a channel with an open circuit is tested in the background. One successful test restores it.": "遮断中のチャネルをバックグラウンドでテストする間隔です。1 回成功すると復帰します。",
+    "How often a channel is tested in the background with each model whose circuit is open. One successful test restores that model.": "遮断中のモデルについて、チャネルをそのモデルでバックグラウンドテストする間隔です。1 回成功するとそのモデルが復帰します。",
     "Enter an integer between 0 and 100": "0 から 100 の整数を入力してください",
     "Enter an integer between 10 and 3600": "10 から 3600 の整数を入力してください"
   }
