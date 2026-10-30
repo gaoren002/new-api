@@ -2,12 +2,14 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // channelCircuitProbeTimeout bounds one background test, so a stalled channel
@@ -16,8 +18,8 @@ const channelCircuitProbeTimeout = time.Minute
 
 // RunChannelCircuitProbes tests every channel with an open circuit once per
 // common.ChannelCircuitProbeSeconds, the same way the channel test button does,
-// and closes the circuit on the first successful test. Each instance probes the
-// circuits it opened itself.
+// and closes the circuit on the first successful test. Every instance runs
+// this loop; the claim in the shared table lets one of them test each round.
 func RunChannelCircuitProbes(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
@@ -27,15 +29,21 @@ func RunChannelCircuitProbes(ctx context.Context) {
 			return
 		case <-ticker.C:
 		}
-		interval := time.Duration(common.ChannelCircuitProbeSeconds) * time.Second
 		for _, circuit := range model.OpenChannelCircuits() {
-			if time.Since(time.Unix(max(circuit.OpenedAt, circuit.ProbedAt), 0)) < interval {
+			if common.GetTimestamp()-max(circuit.OpenedAt, circuit.ProbedAt) < int64(common.ChannelCircuitProbeSeconds) {
 				continue
 			}
-			channel, err := model.CacheGetChannel(circuit.ChannelID)
-			if err != nil || channel.Status != common.ChannelStatusEnabled {
+			if !model.ClaimChannelCircuitProbe(circuit.ChannelID, circuit.ProbedAt) {
+				continue
+			}
+			channel, err := model.GetChannelById(circuit.ChannelID, true)
+			if errors.Is(err, gorm.ErrRecordNotFound) || (err == nil && channel.Status != common.ChannelStatusEnabled) {
 				// Disabled or deleted channels are out of selection anyway.
 				model.ForgetChannelCircuit(circuit.ChannelID)
+				continue
+			}
+			if err != nil {
+				common.SysError(common.LogText("channel circuit probe skipped: %s", err.Error()))
 				continue
 			}
 			testUserID, err := resolveChannelTestUserID(nil)
@@ -64,8 +72,8 @@ func RunChannelCircuitProbes(ctx context.Context) {
 	}
 }
 
-// GetChannelCircuits lists the open channel circuits of the instance serving
-// the admin console.
+// GetChannelCircuits lists the open channel circuits, which every instance
+// shares.
 func GetChannelCircuits(c *gin.Context) {
 	common.ApiSuccess(c, gin.H{
 		"failure_threshold": common.ChannelCircuitFailureThreshold,

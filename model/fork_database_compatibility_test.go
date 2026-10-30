@@ -75,7 +75,9 @@ func TestForkDatabaseCompatibility(t *testing.T) {
 		seedForkCompatibilityRows(t)
 	}
 	verifyForkCompatibilityRows(t)
-	mainSchema := forkSchemaSnapshot(t, DB, "users", "tokens", "invite_codes", "checkins", "prompt_audit_jobs", "prompt_audit_events", "content_moderation_logs")
+	circuit := ChannelCircuit{ChannelID: 9100, Failures: 3, LastFailure: "保留熔断原因", OpenedAt: 1_800_000_000}
+	require.NoError(t, DB.Create(&circuit).Error)
+	mainSchema := forkSchemaSnapshot(t, DB, "users", "tokens", "invite_codes", "checkins", "prompt_audit_jobs", "prompt_audit_events", "content_moderation_logs", "channel_circuits")
 	logSchema := forkSchemaSnapshot(t, LOG_DB, "logs")
 	beforeMain, beforeLog := DB, LOG_DB
 	require.NoError(t, InitDB(), "second production startup/migration")
@@ -89,13 +91,16 @@ func TestForkDatabaseCompatibility(t *testing.T) {
 		}
 	}
 	verifyForkCompatibilityRows(t)
-	assert.Equal(t, mainSchema, forkSchemaSnapshot(t, DB, "users", "tokens", "invite_codes", "checkins", "prompt_audit_jobs", "prompt_audit_events", "content_moderation_logs"))
+	var preservedCircuit ChannelCircuit
+	require.NoError(t, DB.First(&preservedCircuit, "channel_id = ?", circuit.ChannelID).Error)
+	assert.Equal(t, circuit, preservedCircuit)
+	assert.Equal(t, mainSchema, forkSchemaSnapshot(t, DB, "users", "tokens", "invite_codes", "checkins", "prompt_audit_jobs", "prompt_audit_events", "content_moderation_logs", "channel_circuits"))
 	assert.Equal(t, logSchema, forkSchemaSnapshot(t, LOG_DB, "logs"))
 	recorder := &migrationSQLRecorder{}
 	DB = DB.Session(&gorm.Session{Logger: recorder})
 	require.NoError(t, migrateDB(), "idempotent main migration")
 	t.Logf("repeat main migration DDL statements=%d", len(recorder.schemaMutations()))
-	assert.Equal(t, mainSchema, forkSchemaSnapshot(t, DB, "users", "tokens", "invite_codes", "checkins", "prompt_audit_jobs", "prompt_audit_events", "content_moderation_logs"))
+	assert.Equal(t, mainSchema, forkSchemaSnapshot(t, DB, "users", "tokens", "invite_codes", "checkins", "prompt_audit_jobs", "prompt_audit_events", "content_moderation_logs", "channel_circuits"))
 	LOG_DB = LOG_DB.Session(&gorm.Session{Logger: recorder})
 	recorder.reset()
 	require.NoError(t, migrateLOGDB(), "idempotent separate log migration")

@@ -177,7 +177,7 @@ export async function getChannelOps(
 }
 
 /**
- * Get the channels whose circuit is open on the instance serving the console
+ * Get the channels whose circuit is open
  */
 export async function getChannelCircuits(): Promise<ChannelCircuitsResponse> {
   const res = await api.get('/api/channel/circuits', channelActionConfig())

@@ -283,11 +283,19 @@ func TestRequestPolicyEventsReachLogAdminInfo(t *testing.T) {
 }
 
 func TestRecordChannelHealthCountsOnlyChannelFailures(t *testing.T) {
-	previousThreshold := common.ChannelCircuitFailureThreshold
+	database, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	sqlDB, err := database.DB()
+	require.NoError(t, err)
+	sqlDB.SetMaxOpenConns(1)
+	require.NoError(t, database.AutoMigrate(&model.ChannelCircuit{}))
+	previousDB, previousThreshold := model.DB, common.ChannelCircuitFailureThreshold
+	model.DB = database
 	common.ChannelCircuitFailureThreshold = 3
 	t.Cleanup(func() {
-		common.ChannelCircuitFailureThreshold = previousThreshold
-		model.ResetChannelCircuits()
+		require.NoError(t, model.ResetChannelCircuits())
+		model.DB, common.ChannelCircuitFailureThreshold = previousDB, previousThreshold
+		require.NoError(t, sqlDB.Close())
 	})
 	upstream := func(status int) *types.NewAPIError {
 		return types.NewOpenAIError(errors.New("upstream"), types.ErrorCodeBadResponseStatusCode, status)
@@ -321,7 +329,7 @@ func TestRecordChannelHealthCountsOnlyChannelFailures(t *testing.T) {
 		{name: "request the client abandoned", err: upstream(http.StatusBadGateway), abandoned: true, counts: false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			model.ResetChannelCircuits()
+			require.NoError(t, model.ResetChannelCircuits())
 			for range 3 {
 				RecordChannelHealth(newContext(tc.abandoned), 7, tc.err)
 			}
@@ -330,7 +338,7 @@ func TestRecordChannelHealthCountsOnlyChannelFailures(t *testing.T) {
 	}
 
 	t.Run("a success in between restarts the run", func(t *testing.T) {
-		model.ResetChannelCircuits()
+		require.NoError(t, model.ResetChannelCircuits())
 		for _, err := range []*types.NewAPIError{upstream(http.StatusBadGateway), upstream(http.StatusBadGateway), nil, upstream(http.StatusBadGateway), upstream(http.StatusBadGateway)} {
 			RecordChannelHealth(newContext(false), 7, err)
 		}

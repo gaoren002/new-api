@@ -33,9 +33,9 @@ export type ChannelCircuits = {
 }
 
 /**
- * Open channel circuits of the instance serving the console. The list refreshes
- * in the background so the channel table shows which channels are skipped;
- * a failed refresh only leaves the badges out.
+ * Open channel circuits, which every instance shares. The list refreshes in the
+ * background so the channel table shows which channels are skipped; a failed
+ * refresh only leaves the badges out.
  */
 export function useChannelCircuits(): ChannelCircuits {
   const query = useQuery({

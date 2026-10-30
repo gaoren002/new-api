@@ -221,6 +221,7 @@ func TestRequestPolicyRoutingDatabaseMatrix(t *testing.T) {
 func TestOpenCircuitMovesPreferSessionsButKeepsStrictOnes(t *testing.T) {
 	require.NoError(t, i18n.Init())
 	db := modelManagementDB(t, "sqlite", "")
+	require.NoError(t, db.AutoMigrate(&model.ChannelCircuit{}))
 	previousGroups := setting.UserUsableGroups2JSONString()
 	previousRatios, err := common.Marshal(ratio_setting.GetGroupRatioCopy())
 	require.NoError(t, err)
@@ -232,7 +233,7 @@ func TestOpenCircuitMovesPreferSessionsButKeepsStrictOnes(t *testing.T) {
 		require.NoError(t, setting.UpdateUserUsableGroupsByJSONString(previousGroups))
 		require.NoError(t, ratio_setting.UpdateGroupRatioByJSONString(string(previousRatios)))
 		common.ChannelCircuitFailureThreshold, common.MemoryCacheEnabled = previousThreshold, previousCache
-		model.ResetChannelCircuits()
+		require.NoError(t, model.ResetChannelCircuits())
 	})
 	// Channel 1 holds the session binding and stays enabled, but its circuit opens.
 	channels := []model.Channel{
@@ -269,7 +270,7 @@ func TestOpenCircuitMovesPreferSessionsButKeepsStrictOnes(t *testing.T) {
 			seed.Set("channel_id", 1)
 			service.RecordChannelAffinity(seed, 1)
 			t.Cleanup(func() { service.ClearCurrentChannelAffinityCache(seed) })
-			model.ResetChannelCircuits()
+			require.NoError(t, model.ResetChannelCircuits())
 			for range 3 {
 				model.RecordChannelFailure(1, "bad_response_status_code (502)")
 			}

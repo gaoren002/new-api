@@ -113,6 +113,7 @@ func main() {
 
 	// 热更新配置
 	go model.SyncOptions(common.SyncFrequency)
+	go model.SyncChannelCircuits()
 	go controller.RunChannelCircuitProbes(context.Background())
 	go controller.SyncTaskPlugins()
 

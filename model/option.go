@@ -800,9 +800,6 @@ func updateOptionMap(key string, value string) (err error) {
 		common.NonStreamTimeoutSeconds, _ = strconv.Atoi(value)
 	case "ChannelCircuitFailureThreshold":
 		common.ChannelCircuitFailureThreshold, _ = strconv.Atoi(value)
-		if common.ChannelCircuitFailureThreshold <= 0 {
-			ResetChannelCircuits()
-		}
 	case "ChannelCircuitProbeSeconds":
 		common.ChannelCircuitProbeSeconds, _ = strconv.Atoi(value)
 	case "DataExportInterval":

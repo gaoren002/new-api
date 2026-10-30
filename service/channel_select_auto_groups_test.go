@@ -33,7 +33,7 @@ func setupChannelSelectAutoGroupsTest(t *testing.T) *gorm.DB {
 	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", strings.ReplaceAll(t.Name(), "/", "_"))
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.Channel{}, &model.Ability{}))
+	require.NoError(t, db.AutoMigrate(&model.Channel{}, &model.Ability{}, &model.ChannelCircuit{}))
 	model.DB = db
 	common.MemoryCacheEnabled = true
 	common.RetryTimes = 0
@@ -289,7 +289,7 @@ func TestOpenCircuitSitsOutWhileAHealthyChannelServes(t *testing.T) {
 	common.ChannelCircuitFailureThreshold = 3
 	t.Cleanup(func() {
 		common.ChannelCircuitFailureThreshold = previousThreshold
-		model.ResetChannelCircuits()
+		require.NoError(t, model.ResetChannelCircuits())
 	})
 	openCircuit := func(channelID int) {
 		for i := range 3 {
