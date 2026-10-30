@@ -2,11 +2,18 @@ package channel
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
+	common2 "github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/i18n"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -215,5 +222,90 @@ func TestToWebSocketURL(t *testing.T) {
 		"ws://127.0.0.1:3000/backend-api/codex/responses": "ws://127.0.0.1:3000/backend-api/codex/responses",
 	} {
 		assert.Equal(t, want, toWebSocketURL(input), input)
+	}
+}
+
+func TestDoRequestFirstTokenTimeout(t *testing.T) {
+	previousFirstToken, previousNonStream := common2.FirstTokenTimeoutSeconds, common2.NonStreamTimeoutSeconds
+	t.Cleanup(func() {
+		common2.FirstTokenTimeoutSeconds, common2.NonStreamTimeoutSeconds = previousFirstToken, previousNonStream
+	})
+	require.NoError(t, i18n.Init())
+	service.InitHttpClient()
+	gin.SetMode(gin.TestMode)
+
+	answerAfter := func(delay time.Duration, body string) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case <-time.After(delay):
+				_, _ = io.WriteString(w, body)
+			case <-r.Context().Done():
+			}
+		}
+	}
+	const firstEvent = ": keepalive\n\nevent: message_start\ndata: {\"type\":\"message_start\"}\n\n"
+	for _, tc := range []struct {
+		name                  string
+		stream, noFallback    bool
+		firstToken, nonStream int
+		upstream              http.HandlerFunc
+		wantTimeout           bool
+		wantBody              string
+	}{
+		// Stalled upstreams drain the request first: the server only notices
+		// the cancelled client connection once the body has been read.
+		{name: "stream without response headers", stream: true, firstToken: 1, wantTimeout: true, upstream: func(w http.ResponseWriter, r *http.Request) {
+			_, _ = io.Copy(io.Discard, r.Body)
+			<-r.Context().Done()
+		}},
+		{name: "stream with comments but no data event", stream: true, firstToken: 1, wantTimeout: true, upstream: func(w http.ResponseWriter, r *http.Request) {
+			_, _ = io.Copy(io.Discard, r.Body)
+			w.Header().Set("Content-Type", "text/event-stream")
+			_, _ = io.WriteString(w, ": keepalive\n\n")
+			_ = http.NewResponseController(w).Flush()
+			<-r.Context().Done()
+		}},
+		{name: "the first data event disarms the deadline", stream: true, firstToken: 1, wantBody: firstEvent + "data: [DONE]\n\n", upstream: func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/event-stream")
+			_, _ = io.WriteString(w, firstEvent)
+			_ = http.NewResponseController(w).Flush()
+			// Outlive the deadline: once disarmed it must not cut the stream.
+			answerAfter(1500*time.Millisecond, "data: [DONE]\n\n")(w, r)
+		}},
+		{name: "stream error statuses are left to the adaptor", stream: true, firstToken: 1, wantBody: `{"error":"busy"}`, upstream: func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusTooManyRequests)
+			_, _ = io.WriteString(w, `{"error":"busy"}`)
+		}},
+		{name: "non-streaming upstream that never answers", nonStream: 1, wantTimeout: true, upstream: func(w http.ResponseWriter, r *http.Request) {
+			_, _ = io.Copy(io.Discard, r.Body)
+			<-r.Context().Done()
+		}},
+		{name: "the first token timeout does not apply to non-streaming", firstToken: 1, wantBody: `{"ok":true}`, upstream: answerAfter(1300*time.Millisecond, `{"ok":true}`)},
+		{name: "the last channel is not timed", stream: true, noFallback: true, firstToken: 1, wantBody: "data: [DONE]\n\n", upstream: answerAfter(1300*time.Millisecond, "data: [DONE]\n\n")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			common2.FirstTokenTimeoutSeconds, common2.NonStreamTimeoutSeconds = tc.firstToken, tc.nonStream
+			upstream := httptest.NewServer(tc.upstream)
+			defer upstream.Close()
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader("{}"))
+			request, err := http.NewRequestWithContext(c.Request.Context(), http.MethodPost, upstream.URL, strings.NewReader("{}"))
+			require.NoError(t, err)
+			info := &relaycommon.RelayInfo{IsStream: tc.stream, FallbackAvailable: !tc.noFallback, ChannelMeta: &relaycommon.ChannelMeta{}}
+
+			response, err := DoRequest(c, request, info)
+			if tc.wantTimeout {
+				var apiErr *types.NewAPIError
+				require.ErrorAs(t, err, &apiErr)
+				assert.Equal(t, types.ErrorCodeFirstTokenTimeout, apiErr.GetErrorCode())
+				assert.Equal(t, http.StatusGatewayTimeout, apiErr.StatusCode)
+				return
+			}
+			require.NoError(t, err)
+			defer response.Body.Close()
+			body, err := io.ReadAll(response.Body)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantBody, string(body), "the data read while waiting reaches the adaptor unchanged")
+		})
 	}
 }

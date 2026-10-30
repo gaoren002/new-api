@@ -47,6 +47,13 @@ func DecideRelayRetry(c *gin.Context, err *types.NewAPIError, retryTimes int) Po
 	if code < 100 || code > 599 {
 		return PolicyDecision{Action: "retry", Reason: "unrecognized_status", Source: "system"}
 	}
+	// The relay gave up on an upstream that sent nothing in time and nothing
+	// reached the client, so unlike an upstream 504 the request moves on as the
+	// timeout settings ask, even though the abandoned upstream may still finish
+	// and bill its attempt.
+	if err.GetErrorCode() == types.ErrorCodeFirstTokenTimeout {
+		return PolicyDecision{Action: "retry", Reason: "first_token_timeout", Source: "global"}
+	}
 	if operation_setting.IsAlwaysSkipRetryCode(err.GetErrorCode()) || operation_setting.IsAlwaysSkipRetryStatusCode(code) {
 		return PolicyDecision{Action: "stop", Reason: "system_retry_exclusion", Source: "system"}
 	}
@@ -54,6 +61,18 @@ func DecideRelayRetry(c *gin.Context, err *types.NewAPIError, retryTimes int) Po
 		return PolicyDecision{Action: "retry", Reason: "retry_status_matched", Source: "global"}
 	}
 	return PolicyDecision{Action: "stop", Reason: "status_not_retryable", Source: "global"}
+}
+
+// FallbackAvailable reports whether a failure of the current attempt would move
+// the request to another channel: the retry policy allows another attempt and
+// the fallback chain still has an untried channel. The upstream timeouts only
+// fire when it does, so they never turn the last channel's slow answer into a
+// failure.
+func FallbackAvailable(c *gin.Context, retryParam *RetryParam) bool {
+	if ShouldSkipRetryAfterChannelAffinityFailure(c) || GetChannelConstraints(c).SuppressesRetry() {
+		return false
+	}
+	return retryParam.HasFallbackChannel()
 }
 
 func ShouldRetryRelayError(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) bool {

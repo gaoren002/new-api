@@ -146,6 +146,17 @@ var PreConsumedQuota = 500
 
 var RetryTimes = 0
 
+// FirstTokenTimeoutSeconds fails a streaming attempt whose upstream sends no
+// data event within this many seconds of the request, so the relay can fall
+// back to the next channel before anything reaches the client. It only applies
+// while another channel can take over. 0 disables it.
+var FirstTokenTimeoutSeconds = 50
+
+// NonStreamTimeoutSeconds does the same for non-streaming attempts, which only
+// answer once the whole response is ready: it must stay above the slowest
+// normal response. Task submissions are not timed. 0 disables it.
+var NonStreamTimeoutSeconds = 50
+
 //var RootUserEmail = ""
 
 var IsMasterNode bool

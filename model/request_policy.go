@@ -33,6 +33,10 @@ type RequestPolicySnapshot struct {
 	Options         map[string]string
 }
 
+// maxRelayTimeoutSeconds caps both fallback timeouts at the relay's default
+// response header timeout; a longer wait is not a fallback trigger any more.
+const maxRelayTimeoutSeconds = 1800
+
 var requestPolicySnapshot atomic.Pointer[RequestPolicySnapshot]
 var requestPolicyOptionMutex sync.Mutex
 var requestPolicyDefaults = requestPolicyDefaultOptions()
@@ -52,6 +56,8 @@ func requestPolicyDefaultOptions() map[string]string {
 		}
 	}
 	defaults["RetryTimes"] = strconv.Itoa(common.RetryTimes)
+	defaults["FirstTokenTimeoutSeconds"] = strconv.Itoa(common.FirstTokenTimeoutSeconds)
+	defaults["NonStreamTimeoutSeconds"] = strconv.Itoa(common.NonStreamTimeoutSeconds)
 	defaults["AutomaticRetryStatusCodes"] = operation_setting.AutomaticRetryStatusCodesToString()
 	defaults["AutomaticDisableStatusCodes"] = operation_setting.AutomaticDisableStatusCodesToString()
 	defaults["AutomaticDisableKeywords"] = operation_setting.AutomaticDisableKeywordsToString()
@@ -69,7 +75,7 @@ func IsRequestPolicyOption(key string) bool {
 		return true
 	}
 	switch key {
-	case "CheckSensitiveEnabled", "CheckSensitiveOnPromptEnabled", "SensitiveWords", "AutomaticEnableChannelEnabled", "ChannelDisableThreshold", "monitor_setting.auto_test_channel_enabled", "monitor_setting.auto_test_channel_minutes", "monitor_setting.channel_test_concurrency", "monitor_setting.channel_test_mode", "RetryTimes", "AutomaticRetryStatusCodes", "AutomaticDisableChannelEnabled", "AutomaticDisableStatusCodes", "AutomaticDisableKeywords":
+	case "CheckSensitiveEnabled", "CheckSensitiveOnPromptEnabled", "SensitiveWords", "AutomaticEnableChannelEnabled", "ChannelDisableThreshold", "monitor_setting.auto_test_channel_enabled", "monitor_setting.auto_test_channel_minutes", "monitor_setting.channel_test_concurrency", "monitor_setting.channel_test_mode", "RetryTimes", "FirstTokenTimeoutSeconds", "NonStreamTimeoutSeconds", "AutomaticRetryStatusCodes", "AutomaticDisableChannelEnabled", "AutomaticDisableStatusCodes", "AutomaticDisableKeywords":
 		return true
 	}
 	return false
@@ -129,6 +135,11 @@ func BuildRequestPolicy(options map[string]string) (*RequestPolicySnapshot, erro
 	snapshot.RetryTimes, err = strconv.Atoi(raw["RetryTimes"])
 	if err != nil || snapshot.RetryTimes < 0 || snapshot.RetryTimes == math.MaxInt {
 		return nil, fmt.Errorf("retry times must be a non-negative integer with room for the initial attempt")
+	}
+	for _, key := range []string{"FirstTokenTimeoutSeconds", "NonStreamTimeoutSeconds"} {
+		if seconds, err := strconv.Atoi(raw[key]); err != nil || seconds < 0 || seconds > maxRelayTimeoutSeconds {
+			return nil, fmt.Errorf("%s must be an integer between 0 and %d seconds", key, maxRelayTimeoutSeconds)
+		}
 	}
 	snapshot.AutoDisable, err = strconv.ParseBool(raw["AutomaticDisableChannelEnabled"])
 	if err != nil {

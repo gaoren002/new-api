@@ -55,7 +55,57 @@ export function RetrySection() {
                 />
               </FormControl>
               <FormDescription>
-                {t('Excludes the first attempt. Counted per group.')}
+                {t(
+                  'Every channel gets one attempt first; retries are spent only on the last channel.'
+                )}
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name='FirstTokenTimeoutSeconds'
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('First token timeout (seconds)')}</FormLabel>
+              <FormControl>
+                <Input
+                  type='number'
+                  min={0}
+                  max={1800}
+                  step={1}
+                  {...safeNumberFieldProps(field)}
+                />
+              </FormControl>
+              <FormDescription>
+                {t(
+                  'A streaming attempt that receives no data within this time fails over to the next channel. It only applies while another channel can take over. 0 disables it.'
+                )}
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name='NonStreamTimeoutSeconds'
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('Non-streaming timeout (seconds)')}</FormLabel>
+              <FormControl>
+                <Input
+                  type='number'
+                  min={0}
+                  max={1800}
+                  step={1}
+                  {...safeNumberFieldProps(field)}
+                />
+              </FormControl>
+              <FormDescription>
+                {t(
+                  'A non-streaming attempt that receives no response within this time fails over to the next channel. It only applies while another channel can take over. Keep it above your slowest normal response. 0 disables it.'
+                )}
               </FormDescription>
               <FormMessage />
             </FormItem>

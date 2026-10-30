@@ -486,13 +486,24 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 	}
 
 	common2.SetContextKey(c, appconstant.ContextKeyUpstreamRequestOrigin, req.URL.Scheme+"://"+req.URL.Host)
+	firstToken, req := startFirstTokenDeadline(info, req)
 	resp, err := relayClient.Do(req)
 	if err != nil {
+		if !firstToken.disarm() {
+			logger.LogError(c, common2.LogText("upstream timeout: no response within %ds (stream=%t)", firstToken.seconds, firstToken.stream))
+			return nil, firstTokenTimeoutError(c, firstToken.seconds)
+		}
 		logger.LogError(c, common2.LogText("do request failed: %s", err.Error()))
 		return nil, types.NewError(err, types.ErrorCodeDoRequestFailed, types.ErrOptionWithHideErrMsg("upstream error: do request failed"))
 	}
 	if resp == nil {
+		firstToken.disarm()
 		return nil, errors.New("resp is nil")
+	}
+	if firstToken != nil && !firstToken.awaitFirstData(resp) {
+		_ = resp.Body.Close()
+		logger.LogError(c, common2.LogText("upstream timeout: no data within %ds (stream=%t)", firstToken.seconds, firstToken.stream))
+		return nil, firstTokenTimeoutError(c, firstToken.seconds)
 	}
 	if common2.DebugEnabled {
 		policy := service.NormalizeHTTPTransportPolicy(info.ChannelSetting)

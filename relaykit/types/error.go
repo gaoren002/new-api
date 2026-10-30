@@ -50,6 +50,10 @@ const (
 	ErrorCodeDoRequestFailed    ErrorCode = "do_request_failed"
 	ErrorCodeGetChannelFailed   ErrorCode = "get_channel_failed"
 	ErrorCodeGenRelayInfoFailed ErrorCode = "gen_relay_info_failed"
+	// ErrorCodeFirstTokenTimeout marks a streaming attempt whose upstream sent
+	// no data event within the first token timeout. Nothing reached the client,
+	// so the relay moves on to the next channel.
+	ErrorCodeFirstTokenTimeout ErrorCode = "first_token_timeout"
 
 	// channel error
 	ErrorCodeChannelNoAvailableKey        ErrorCode = "channel:no_available_key"

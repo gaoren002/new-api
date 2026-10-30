@@ -229,8 +229,17 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	}
 	relayInfo.RetryIndex = 0
 	relayInfo.LastError = nil
+	defer func() {
+		// Log the channel trail of every request that needed a fallback,
+		// whether the last attempt succeeded or not.
+		if useChannel := c.GetStringSlice("use_channel"); len(useChannel) > 1 {
+			logger.LogInfo(c, common.LogText("retry: %s", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(useChannel)), "->"), "[]")))
+		}
+	}()
 
-	for ; retryParam.GetRetry() <= common.RetryTimes; retryParam.IncreaseRetry() {
+	// The fallback chain bounds the loop: every channel gets one attempt, then
+	// the last one is retried at most RetryTimes times.
+	for ; ; retryParam.IncreaseRetry() {
 		relayInfo.StreamStatus = nil
 		relayInfo.PerformanceBusinessRejection = false
 		relayInfo.PerformanceOutputTokens = 0
@@ -241,7 +250,12 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			newAPIError = channelErr
 			break
 		}
+		if channel == nil {
+			// Nothing is left to try; the last attempt's error stands.
+			break
+		}
 		service.AppendUsedChannel(c, channel.Id)
+		relayInfo.FallbackAvailable = service.FallbackAvailable(c, retryParam)
 		if billingErr := service.PrepareTieredBillingForSelectedGroup(c, relayInfo); billingErr != nil {
 			newAPIError = billingErr
 			break
@@ -299,19 +313,13 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			break
 		}
 
-		decision := service.DecideRelayRetry(c, newAPIError, common.RetryTimes-retryParam.GetRetry())
+		decision := service.DecideRelayRetry(c, newAPIError, retryParam.AttemptsLeft())
 		service.RecordPolicyFailure(c, channel.Id, newAPIError, decision)
 		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError, relayInfo)
 
 		if decision.Action != "retry" {
 			break
 		}
-	}
-
-	useChannel := c.GetStringSlice("use_channel")
-	if len(useChannel) > 1 {
-		retryLogStr := common.LogText("retry: %s", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(useChannel)), "->"), "[]"))
-		logger.LogInfo(c, retryLogStr)
 	}
 }
 
@@ -371,6 +379,9 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+// getChannel returns the channel for the next attempt and records it in the
+// fallback chain. The first attempt uses the channel the distributor selected.
+// A nil channel without an error means the chain has nothing left to try.
 func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service.RetryParam) (*model.Channel, *types.NewAPIError) {
 	if info.ChannelMeta == nil {
 		autoBan := c.GetBool("auto_ban")
@@ -385,6 +396,11 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 			AutoBan: &autoBanInt,
 		}
 		service.RequestPolicy(c).BeginAttempt(channel, info.UsingGroup)
+		group := retryParam.TokenGroup
+		if autoGroup := common.GetContextKeyString(c, constant.ContextKeyAutoGroup); group == "auto" && autoGroup != "" {
+			group = autoGroup
+		}
+		retryParam.RecordAttempt(channel.Id, group)
 		return channel, nil
 	}
 	channel, selectGroup, err := service.CacheGetRandomSatisfiedChannel(retryParam)
@@ -392,8 +408,9 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 		return nil, types.NewError(errors.New(i18n.T(c, i18n.MsgRelayRetryGetChannelFailed, map[string]any{"Group": selectGroup, "Model": info.OriginModelName, "Error": err.Error()})), types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry())
 	}
 	if channel == nil {
-		return nil, types.NewError(errors.New(i18n.T(c, i18n.MsgRelayRetryNoAvailableChannel, map[string]any{"Group": selectGroup, "Model": info.OriginModelName})), types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry())
+		return nil, nil
 	}
+	retryParam.RecordAttempt(channel.Id, selectGroup)
 
 	info.PriceData.GroupRatioInfo = helper.HandleGroupRatio(c, info)
 
@@ -625,7 +642,9 @@ func executeTaskSubmissionWith(
 		Retry:       common.GetPointer(0),
 	}
 
-	for ; retryParam.GetRetry() <= common.RetryTimes; retryParam.IncreaseRetry() {
+	// A locked channel is retried RetryTimes times; otherwise the fallback chain
+	// tries every channel once and retries only the last one.
+	for ; ; retryParam.IncreaseRetry() {
 		stage = "select_channel"
 		if requestErr := c.Request.Context().Err(); requestErr != nil {
 			diagnostics.cancelled("before_attempt", retryParam.GetRetry()+1)
@@ -634,7 +653,9 @@ func executeTaskSubmissionWith(
 		}
 		var channel *model.Channel
 
-		if lockedCh, ok := relayInfo.LockedChannel.(*model.Channel); ok && lockedCh != nil {
+		lockedCh, locked := relayInfo.LockedChannel.(*model.Channel)
+		locked = locked && lockedCh != nil
+		if locked {
 			channel = lockedCh
 			policy.BeginAttempt(channel, relayInfo.UsingGroup)
 			if retryParam.GetRetry() > 0 {
@@ -649,6 +670,10 @@ func executeTaskSubmissionWith(
 			if channelErr != nil {
 				logger.LogError(c, channelErr.Error())
 				taskErr = service.TaskErrorWrapperLocal(channelErr.Err, "get_channel_failed", channelErr.StatusCode)
+				break
+			}
+			if channel == nil {
+				// Nothing is left to try; the last attempt's error stands.
 				break
 			}
 		}
@@ -681,7 +706,11 @@ func executeTaskSubmissionWith(
 
 		taskAPIError := taskSubmissionAPIError(taskErr)
 		relayInfo.LastError = taskAPIError
-		decision := decideTaskRetry(c, taskErr, common.RetryTimes-retryParam.GetRetry())
+		attemptsLeft := common.RetryTimes - retryParam.GetRetry()
+		if !locked {
+			attemptsLeft = retryParam.AttemptsLeft()
+		}
+		decision := decideTaskRetry(c, taskErr, attemptsLeft)
 		service.RecordPolicyFailure(c, channel.Id, taskAPIError, decision)
 		if !taskErr.LocalError {
 			processChannelError(c,

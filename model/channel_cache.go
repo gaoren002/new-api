@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -114,15 +115,19 @@ func SyncChannelCache(frequency int) {
 	}
 }
 
+// GetRandomSatisfiedChannel picks a channel serving model in group from the
+// highest priority tier, weighted by channel weight. Channels in excluded (the
+// ones a request already tried) are skipped, so a retry falls through to the
+// best untried tier instead of repeating a failed channel.
 func GetRandomSatisfiedChannel(
 	group string,
 	model string,
-	retry int,
+	excluded []int,
 	filters []dto.ChannelFilter,
 ) (*Channel, error) {
 	// if memory cache is disabled, get channel directly from database
 	if !common.MemoryCacheEnabled {
-		return GetChannel(group, model, retry, filters)
+		return GetChannel(group, model, excluded, filters)
 	}
 
 	channelSyncLock.RLock()
@@ -137,6 +142,9 @@ func GetRandomSatisfiedChannel(
 		channels, _ = filterCandidateIDs(group2model2channels[group][normalizedModel], model, filters)
 	}
 
+	channels = slices.DeleteFunc(slices.Clone(channels), func(id int) bool {
+		return slices.Contains(excluded, id)
+	})
 	if len(channels) == 0 {
 		return nil, nil
 	}
@@ -161,13 +169,9 @@ func GetRandomSatisfiedChannel(
 		sortedUniquePriorities = append(sortedUniquePriorities, priority)
 	}
 	sort.Sort(sort.Reverse(sort.IntSlice(sortedUniquePriorities)))
+	targetPriority := int64(sortedUniquePriorities[0])
 
-	if retry >= len(uniquePriorities) {
-		retry = len(uniquePriorities) - 1
-	}
-	targetPriority := int64(sortedUniquePriorities[retry])
-
-	// get the priority for the given retry number
+	// choose within the highest remaining priority tier
 	var sumWeight = 0
 	var targetChannels []*Channel
 	for _, channelId := range channels {

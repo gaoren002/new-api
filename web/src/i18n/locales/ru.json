@@ -2418,7 +2418,6 @@
     "Exchange rate adjustments: {{count}}": "Пересчёт по курсу: {{count}}",
     "Exchange rate is required": "Требуется курс обмена",
     "Exchange rate must be greater than 0": "Курс обмена должен быть больше 0",
-    "Excludes the first attempt. Counted per group.": "Без первой попытки, отдельно для каждой группы.",
     "Execute code in a sandbox during the response": "Выполнять код в песочнице во время ответа",
     "Executor": "Исполнитель",
     "Exhausted": "Исчерпано",
@@ -7372,6 +7371,11 @@
     "Unlocked": "Unlocked",
     "Next tier reward range": "Next tier reward range",
     "Tiered check-in rewards encourage active API usage, not recharge amount.": "Tiered check-in rewards encourage active API usage, not recharge amount.",
-    "Use {{amount}} more": "Use {{amount}} more"
+    "Use {{amount}} more": "Use {{amount}} more",
+    "First token timeout (seconds)": "Тайм-аут первого токена (секунды)",
+    "A streaming attempt that receives no data within this time fails over to the next channel. It only applies while another channel can take over. 0 disables it.": "Потоковая попытка, не получившая данных от вышестоящего сервиса за это время, считается неудачной и переходит к следующему каналу. Действует, только если есть другой канал для переключения. 0 — отключено.",
+    "Every channel gets one attempt first; retries are spent only on the last channel.": "Сначала каждый канал пробуется по одному разу без учёта повторов; повторы расходуются только на последнем канале.",
+    "Non-streaming timeout (seconds)": "Тайм-аут без потоковой передачи (секунды)",
+    "A non-streaming attempt that receives no response within this time fails over to the next channel. It only applies while another channel can take over. Keep it above your slowest normal response. 0 disables it.": "Попытка без потоковой передачи, не получившая ответа за это время, считается неудачной и переходит к следующему каналу. Действует, только если есть другой канал для переключения. Значение должно превышать время самого медленного обычного ответа. 0 — отключено."
   }
 }

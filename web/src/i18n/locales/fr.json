@@ -2418,7 +2418,6 @@
     "Exchange rate adjustments: {{count}}": "Ajustements de change : {{count}}",
     "Exchange rate is required": "Le taux de change est requis",
     "Exchange rate must be greater than 0": "Le taux de change doit être supérieur à 0",
-    "Excludes the first attempt. Counted per group.": "Hors première tentative, compté par groupe.",
     "Execute code in a sandbox during the response": "Exécuter du code dans un bac à sable pendant la réponse",
     "Executor": "Exécuteur",
     "Exhausted": "Épuisé",
@@ -7372,6 +7371,11 @@
     "Unlocked": "Unlocked",
     "Next tier reward range": "Next tier reward range",
     "Tiered check-in rewards encourage active API usage, not recharge amount.": "Tiered check-in rewards encourage active API usage, not recharge amount.",
-    "Use {{amount}} more": "Use {{amount}} more"
+    "Use {{amount}} more": "Use {{amount}} more",
+    "First token timeout (seconds)": "Délai du 1er token (secondes)",
+    "A streaming attempt that receives no data within this time fails over to the next channel. It only applies while another channel can take over. 0 disables it.": "Une tentative en streaming qui ne reçoit aucune donnée de l'amont dans ce délai échoue et passe au canal suivant. Ne s'applique que si un autre canal peut prendre le relais. 0 désactive ce délai.",
+    "Every channel gets one attempt first; retries are spent only on the last channel.": "Chaque canal est d'abord essayé une fois, sans compter comme une nouvelle tentative ; les nouvelles tentatives ne portent que sur le dernier canal.",
+    "Non-streaming timeout (seconds)": "Délai hors streaming (secondes)",
+    "A non-streaming attempt that receives no response within this time fails over to the next channel. It only applies while another channel can take over. Keep it above your slowest normal response. 0 disables it.": "Une tentative hors streaming qui ne reçoit aucune réponse dans ce délai échoue et passe au canal suivant. Ne s'applique que si un autre canal peut prendre le relais. Gardez-le au-dessus de la réponse normale la plus lente. 0 désactive ce délai."
   }
 }

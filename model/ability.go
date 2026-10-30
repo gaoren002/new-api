@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -105,10 +106,12 @@ func getChannelQuery(group string, model string, retry int) (*gorm.DB, error) {
 	return channelQuery, nil
 }
 
+// GetChannel is the database-backed GetRandomSatisfiedChannel used when the
+// memory cache is disabled: highest priority tier first, skipping excluded.
 func GetChannel(
 	group string,
 	model string,
-	retry int,
+	excluded []int,
 	filters []dto.ChannelFilter,
 ) (*Channel, error) {
 	var abilities []Ability
@@ -126,6 +129,9 @@ func GetChannel(
 		}
 		abilities = filterAbilitiesByConstraints(abilities, model, filters)
 	}
+	abilities = lo.Filter(abilities, func(ability Ability, _ int) bool {
+		return !slices.Contains(excluded, ability.ChannelId)
+	})
 	if len(abilities) > 0 {
 		priorities := make([]int64, 0)
 		seen := make(map[int64]bool)
@@ -140,10 +146,7 @@ func GetChannel(
 			}
 		}
 		sort.Slice(priorities, func(i, j int) bool { return priorities[i] > priorities[j] })
-		if retry >= len(priorities) {
-			retry = len(priorities) - 1
-		}
-		targetPriority := priorities[retry]
+		targetPriority := priorities[0]
 		abilities = lo.Filter(abilities, func(ability Ability, _ int) bool {
 			return ability.Priority == nil && targetPriority == 0 || ability.Priority != nil && *ability.Priority == targetPriority
 		})

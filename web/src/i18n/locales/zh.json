@@ -2420,7 +2420,6 @@
     "Exchange rate adjustments: {{count}}": "按汇率调整：{{count}} 个模型",
     "Exchange rate is required": "汇率为必填项",
     "Exchange rate must be greater than 0": "汇率必须大于 0",
-    "Excludes the first attempt. Counted per group.": "不含首次，按分组计算。",
     "Execute code in a sandbox during the response": "在响应过程中沙箱执行代码",
     "Executor": "执行实例",
     "Exhausted": "已耗尽",
@@ -7704,6 +7703,11 @@
     "Usage appears in the usage logs like any other model, and token groups and auto group selection work as usual.": "用量会像其他模型一样出现在使用日志中，令牌分组和自动分组选择照常生效。",
     "Errors": "错误",
     "A 400 error is returned for invalid input: empty input, more than 32 string items, more than 64 messages, mixed strings and objects, invalid roles, empty content, or a final message with the system role.": "无效输入将返回 400 错误：输入为空、字符串超过 32 条、消息超过 64 条、字符串与对象混用、role 不合法、content 为空，或最后一条消息的 role 为 system。",
-    "Upstream failures surface as standard relay errors and are automatically retried across available channels.": "上游故障会以标准中继错误的形式返回，并自动在可用渠道之间重试。"
+    "Upstream failures surface as standard relay errors and are automatically retried across available channels.": "上游故障会以标准中继错误的形式返回，并自动在可用渠道之间重试。",
+    "First token timeout (seconds)": "首字超时（秒）",
+    "A streaming attempt that receives no data within this time fails over to the next channel. It only applies while another channel can take over. 0 disables it.": "流式请求在这段时间内没收到上游任何数据，就判定失败并换下一个渠道。只在还有其他渠道可换时生效。0 表示关闭。",
+    "Every channel gets one attempt first; retries are spent only on the last channel.": "每个渠道先各试一次，不计入重试次数；重试次数只用在最后一个渠道上。",
+    "Non-streaming timeout (seconds)": "非流式超时（秒）",
+    "A non-streaming attempt that receives no response within this time fails over to the next channel. It only applies while another channel can take over. Keep it above your slowest normal response. 0 disables it.": "非流式请求在这段时间内没收到上游任何响应，就判定失败并换下一个渠道。只在还有其他渠道可换时生效。要大于正常请求的最长耗时。0 表示关闭。"
   }
 }

@@ -26,6 +26,8 @@ import { RoutingPolicySection } from '../routing-section'
 
 const options = {
   RetryTimes: '2',
+  FirstTokenTimeoutSeconds: '0',
+  NonStreamTimeoutSeconds: '0',
   'channel_affinity_setting.enabled': 'true',
   'channel_affinity_setting.session_mode': '',
   'channel_affinity_setting.switch_on_success': 'false',
@@ -234,6 +236,40 @@ it('editing a rule and retries saves one draft without dropping transforms or ex
     param_override_template: { temperature: 0 },
     future_field: { retained: true },
   })
+})
+
+it('saving edited timeouts sends only those options', async () => {
+  show()
+  const firstToken = await screen.findByRole('spinbutton', {
+    name: 'First token timeout (seconds)',
+  })
+  const nonStream = screen.getByRole('spinbutton', {
+    name: 'Non-streaming timeout (seconds)',
+  })
+  expect(firstToken).toHaveValue(0)
+  expect(nonStream).toHaveValue(0)
+  fireEvent.change(firstToken, { target: { value: '50' } })
+  fireEvent.change(nonStream, { target: { value: '300' } })
+  await userEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+  await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(1))
+  const payload = vi.mocked(api.patch).mock.calls[0][1] as {
+    options: Record<string, string>
+  }
+  expect(payload.options).toEqual({
+    FirstTokenTimeoutSeconds: '50',
+    NonStreamTimeoutSeconds: '300',
+  })
+})
+
+it('a first token timeout above 1800 seconds is rejected without saving', async () => {
+  show()
+  const timeout = await screen.findByRole('spinbutton', {
+    name: 'First token timeout (seconds)',
+  })
+  fireEvent.change(timeout, { target: { value: '1801' } })
+  await userEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+  await waitFor(() => expect(timeout).toHaveAttribute('aria-invalid', 'true'))
+  expect(api.patch).not.toHaveBeenCalled()
 })
 
 it('keeps binding options available for rule overrides regardless of the global default', async () => {

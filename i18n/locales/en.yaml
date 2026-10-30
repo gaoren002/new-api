@@ -38,6 +38,7 @@ relay.group_saturated: "The current group is at capacity. Please try again later
 relay.group_upstream_saturated: "The upstream of the current group is at capacity. Please try again later"
 relay.retry_get_channel_failed: "Failed to get available channel for model {{.Model}} under group {{.Group}} (retry): {{.Error}}"
 relay.retry_no_available_channel: "No available channel for model {{.Model}} under group {{.Group}} (retry)"
+relay.first_token_timeout: "The upstream channel sent no data within {{.Seconds}} seconds"
 relay.access_token_unsupported: "Access tokens are not supported here"
 
 # Emails and the name of the token created at registration

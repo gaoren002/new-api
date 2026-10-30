@@ -2296,7 +2296,9 @@ func TestRouteTaskPluginEndpointUsesSelectedChannel(t *testing.T) {
 								assert.Equal(t, expected.Id, common.GetContextKeyInt(c, constant.ContextKeyChannelId))
 								assert.Equal(t, expected.Key, common.GetContextKeyString(c, constant.ContextKeyChannelKey))
 								if tc.retry {
-									next, _, err := service.CacheGetRandomSatisfiedChannel(&service.RetryParam{Ctx: c, TokenGroup: "route-test", ModelName: modelName, Retry: common.GetPointer(1)})
+									retryParam := &service.RetryParam{Ctx: c, TokenGroup: "route-test", ModelName: modelName, Retry: common.GetPointer(1)}
+									retryParam.RecordAttempt(expected.Id, "route-test")
+									next, _, err := service.CacheGetRandomSatisfiedChannel(retryParam)
 									require.NoError(t, err)
 									require.NotNil(t, next)
 									assert.Equal(t, channels[len(channels)-1].Id, next.Id)

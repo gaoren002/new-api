@@ -2418,7 +2418,6 @@
     "Exchange rate adjustments: {{count}}": "Exchange rate adjustments: {{count}}",
     "Exchange rate is required": "Exchange rate is required",
     "Exchange rate must be greater than 0": "Exchange rate must be greater than 0",
-    "Excludes the first attempt. Counted per group.": "Excludes the first attempt. Counted per group.",
     "Execute code in a sandbox during the response": "Execute code in a sandbox during the response",
     "Executor": "Executor",
     "Exhausted": "Exhausted",
@@ -7463,6 +7462,11 @@
     "Usage appears in the usage logs like any other model, and token groups and auto group selection work as usual.": "Usage appears in the usage logs like any other model, and token groups and auto group selection work as usual.",
     "Errors": "Errors",
     "A 400 error is returned for invalid input: empty input, more than 32 string items, more than 64 messages, mixed strings and objects, invalid roles, empty content, or a final message with the system role.": "A 400 error is returned for invalid input: empty input, more than 32 string items, more than 64 messages, mixed strings and objects, invalid roles, empty content, or a final message with the system role.",
-    "Upstream failures surface as standard relay errors and are automatically retried across available channels.": "Upstream failures surface as standard relay errors and are automatically retried across available channels."
+    "Upstream failures surface as standard relay errors and are automatically retried across available channels.": "Upstream failures surface as standard relay errors and are automatically retried across available channels.",
+    "First token timeout (seconds)": "First token timeout (seconds)",
+    "A streaming attempt that receives no data within this time fails over to the next channel. It only applies while another channel can take over. 0 disables it.": "A streaming attempt that receives no data within this time fails over to the next channel. It only applies while another channel can take over. 0 disables it.",
+    "Every channel gets one attempt first; retries are spent only on the last channel.": "Every channel gets one attempt first; retries are spent only on the last channel.",
+    "Non-streaming timeout (seconds)": "Non-streaming timeout (seconds)",
+    "A non-streaming attempt that receives no response within this time fails over to the next channel. It only applies while another channel can take over. Keep it above your slowest normal response. 0 disables it.": "A non-streaming attempt that receives no response within this time fails over to the next channel. It only applies while another channel can take over. Keep it above your slowest normal response. 0 disables it."
   }
 }

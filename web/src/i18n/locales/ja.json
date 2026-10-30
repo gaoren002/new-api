@@ -2418,7 +2418,6 @@
     "Exchange rate adjustments: {{count}}": "為替換算：{{count}} モデル",
     "Exchange rate is required": "為替レートは必須です",
     "Exchange rate must be greater than 0": "為替レートは 0 より大きくする必要があります",
-    "Excludes the first attempt. Counted per group.": "初回を除く、グループごとの回数です。",
     "Execute code in a sandbox during the response": "応答中にサンドボックスでコードを実行",
     "Executor": "実行ノード",
     "Exhausted": "使い切り",
@@ -7372,6 +7371,11 @@
     "Unlocked": "Unlocked",
     "Next tier reward range": "Next tier reward range",
     "Tiered check-in rewards encourage active API usage, not recharge amount.": "Tiered check-in rewards encourage active API usage, not recharge amount.",
-    "Use {{amount}} more": "Use {{amount}} more"
+    "Use {{amount}} more": "Use {{amount}} more",
+    "First token timeout (seconds)": "先頭トークンのタイムアウト（秒）",
+    "A streaming attempt that receives no data within this time fails over to the next channel. It only applies while another channel can take over. 0 disables it.": "ストリーミングの試行がこの時間内に上流からデータを受け取らない場合は失敗とみなし、次のチャネルに切り替えます。切り替え先のチャネルがある場合のみ適用されます。0 で無効になります。",
+    "Every channel gets one attempt first; retries are spent only on the last channel.": "各チャネルはまず 1 回ずつ試行され、再試行回数には含まれません。再試行は最後のチャネルでのみ行われます。",
+    "Non-streaming timeout (seconds)": "非ストリーミングのタイムアウト（秒）",
+    "A non-streaming attempt that receives no response within this time fails over to the next channel. It only applies while another channel can take over. Keep it above your slowest normal response. 0 disables it.": "非ストリーミングの試行がこの時間内に上流から応答を受け取らない場合は失敗とみなし、次のチャネルに切り替えます。切り替え先のチャネルがある場合のみ適用されます。通常の最も遅い応答より長く設定してください。0 で無効になります。"
   }
 }

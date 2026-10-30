@@ -160,10 +160,14 @@ type RelayInfo struct {
 	IsClaudeBetaQuery                     bool // /v1/messages?beta=true
 	IsChannelTest                         bool // channel test request
 	RetryIndex                            int
-	LastError                             *types.NewAPIError
-	RuntimeHeadersOverride                map[string]any
-	UseRuntimeHeadersOverride             bool
-	ParamOverrideAudit                    []string
+	// FallbackAvailable is set by the relay loop when a failure of the current
+	// attempt would move the request to another channel. Only then do the
+	// upstream timeouts fire, so they never fail the last channel.
+	FallbackAvailable         bool
+	LastError                 *types.NewAPIError
+	RuntimeHeadersOverride    map[string]any
+	UseRuntimeHeadersOverride bool
+	ParamOverrideAudit        []string
 
 	PriceData hosttypes.PriceData
 

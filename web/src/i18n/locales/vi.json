@@ -2418,7 +2418,6 @@
     "Exchange rate adjustments: {{count}}": "Quy đổi theo tỷ giá: {{count}}",
     "Exchange rate is required": "Cần có tỷ giá",
     "Exchange rate must be greater than 0": "Tỷ giá phải lớn hơn 0",
-    "Excludes the first attempt. Counted per group.": "Không tính lần đầu, tính theo từng nhóm.",
     "Execute code in a sandbox during the response": "Thực thi mã trong sandbox trong quá trình phản hồi",
     "Executor": "Trình thực thi",
     "Exhausted": "Đã cạn kiệt",
@@ -7372,6 +7371,11 @@
     "Unlocked": "Unlocked",
     "Next tier reward range": "Next tier reward range",
     "Tiered check-in rewards encourage active API usage, not recharge amount.": "Tiered check-in rewards encourage active API usage, not recharge amount.",
-    "Use {{amount}} more": "Use {{amount}} more"
+    "Use {{amount}} more": "Use {{amount}} more",
+    "First token timeout (seconds)": "Thời gian chờ token đầu (giây)",
+    "A streaming attempt that receives no data within this time fails over to the next channel. It only applies while another channel can take over. 0 disables it.": "Lượt thử dạng streaming không nhận được dữ liệu nào từ upstream trong khoảng thời gian này sẽ bị coi là thất bại và chuyển sang kênh tiếp theo. Chỉ áp dụng khi còn kênh khác để chuyển sang. 0 để tắt.",
+    "Every channel gets one attempt first; retries are spent only on the last channel.": "Mỗi kênh được thử một lần trước và không tính vào số lần thử lại; số lần thử lại chỉ áp dụng cho kênh cuối cùng.",
+    "Non-streaming timeout (seconds)": "Thời gian chờ không streaming (giây)",
+    "A non-streaming attempt that receives no response within this time fails over to the next channel. It only applies while another channel can take over. Keep it above your slowest normal response. 0 disables it.": "Lượt thử không streaming không nhận được phản hồi nào từ upstream trong khoảng thời gian này sẽ bị coi là thất bại và chuyển sang kênh tiếp theo. Chỉ áp dụng khi còn kênh khác để chuyển sang. Hãy đặt lớn hơn thời gian phản hồi bình thường chậm nhất. 0 để tắt."
   }
 }

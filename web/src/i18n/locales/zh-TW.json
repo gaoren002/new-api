@@ -2418,7 +2418,6 @@
     "Exchange rate adjustments: {{count}}": "按匯率調整：{{count}} 個模型",
     "Exchange rate is required": "匯率為必填項",
     "Exchange rate must be greater than 0": "匯率必須大於 0",
-    "Excludes the first attempt. Counted per group.": "不含首次，依分組計算。",
     "Execute code in a sandbox during the response": "在回應過程中沙箱執行程式碼",
     "Executor": "執行實例",
     "Exhausted": "已耗盡",
@@ -7360,6 +7359,11 @@
     "Zhipu": "智譜",
     "Zhipu GLM": "智譜GLM",
     "Zhipu V4": "智譜 V4",
-    "Zoom": "縮放"
+    "Zoom": "縮放",
+    "First token timeout (seconds)": "首字逾時（秒）",
+    "A streaming attempt that receives no data within this time fails over to the next channel. It only applies while another channel can take over. 0 disables it.": "串流請求在這段時間內沒收到上游任何資料，就判定失敗並換下一個渠道。只在還有其他渠道可換時生效。0 表示關閉。",
+    "Every channel gets one attempt first; retries are spent only on the last channel.": "每個渠道先各試一次，不計入重試次數；重試次數只用在最後一個渠道上。",
+    "Non-streaming timeout (seconds)": "非串流逾時（秒）",
+    "A non-streaming attempt that receives no response within this time fails over to the next channel. It only applies while another channel can take over. Keep it above your slowest normal response. 0 disables it.": "非串流請求在這段時間內沒收到上游任何回應，就判定失敗並換下一個渠道。只在還有其他渠道可換時生效。要大於正常請求的最長耗時。0 表示關閉。"
   }
 }

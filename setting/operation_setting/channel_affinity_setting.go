@@ -132,9 +132,12 @@ var channelAffinitySetting = ChannelAffinitySetting{
 			TTLSeconds:            0,
 			ParamOverrideTemplate: buildCodexPassHeaderTemplate(),
 			SkipRetryOnFailure:    true,
-			IncludeUsingGroup:     true,
-			IncludeRuleName:       true,
-			UserAgentInclude:      nil,
+			// A failed session falls back to another channel and rebinds there
+			// instead of failing the request.
+			SessionMode:       "prefer",
+			IncludeUsingGroup: true,
+			IncludeRuleName:   true,
+			UserAgentInclude:  nil,
 		},
 		{
 			Name:       "claude cli trace",
@@ -147,6 +150,7 @@ var channelAffinitySetting = ChannelAffinitySetting{
 			TTLSeconds:            0,
 			ParamOverrideTemplate: buildPassHeaderTemplate(claudeCliPassThroughHeaders),
 			SkipRetryOnFailure:    true,
+			SessionMode:           "prefer",
 			IncludeUsingGroup:     true,
 			IncludeRuleName:       true,
 			UserAgentInclude:      nil,

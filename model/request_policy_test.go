@@ -78,6 +78,9 @@ func TestRequestPolicyDatabaseMatrix(t *testing.T) {
 			require.NoError(t, UpdateRequestPolicyOptions(map[string]string{"RetryTimes": "2", "channel_affinity_setting.rules": rules}))
 			assert.Equal(t, 2, CurrentRequestPolicy().RetryTimes)
 			assert.Equal(t, 2, common.RetryTimes, "the runtime global follows the same write")
+			require.NoError(t, UpdateRequestPolicyOptions(map[string]string{"FirstTokenTimeoutSeconds": "50", "NonStreamTimeoutSeconds": "300"}))
+			assert.Equal(t, 50, common.FirstTokenTimeoutSeconds, "the first token timeout follows the same write")
+			assert.Equal(t, 300, common.NonStreamTimeoutSeconds, "the non-streaming timeout follows the same write")
 			require.NoError(t, UpdateOption("AutomaticRetryStatusCodes", "429,500-503"))
 			assert.Equal(t, "429,500-503", CurrentRequestPolicy().Options["AutomaticRetryStatusCodes"])
 			assert.Equal(t, "429,500-503", operation_setting.AutomaticRetryStatusCodesToString())
@@ -99,6 +102,14 @@ func TestRequestPolicyDatabaseMatrix(t *testing.T) {
 				assert.Error(t, UpdateRequestPolicyOptions(map[string]string{"RetryTimes": value}))
 				assert.Same(t, snapshot, CurrentRequestPolicy())
 			}
+			for _, key := range []string{"FirstTokenTimeoutSeconds", "NonStreamTimeoutSeconds"} {
+				for _, value := range []string{"-1", "1.5", "bad", "1801"} {
+					assert.Error(t, UpdateRequestPolicyOptions(map[string]string{key: value}))
+					assert.Same(t, snapshot, CurrentRequestPolicy())
+				}
+			}
+			assert.Equal(t, 50, common.FirstTokenTimeoutSeconds, "a rejected value keeps the stored timeout")
+			assert.Equal(t, 300, common.NonStreamTimeoutSeconds, "a rejected value keeps the stored timeout")
 			assert.Error(t, UpdateRequestPolicyOptions(map[string]string{"channel_affinity_setting.rules": "[", "RetryTimes": "8"}))
 			assert.Same(t, snapshot, CurrentRequestPolicy())
 			var option Option
