@@ -7388,6 +7388,10 @@
     "Circuit probe interval (seconds)": "Khoảng kiểm tra khi ngắt mạch (giây)",
     "How often a channel is tested in the background with each model whose circuit is open. One successful test restores that model.": "Tần suất kiểm tra nền kênh với từng mô hình đang ngắt mạch. Một lần kiểm tra thành công sẽ khôi phục mô hình đó.",
     "Enter an integer between 0 and 100": "Nhập số nguyên từ 0 đến 100",
-    "Enter an integer between 10 and 3600": "Nhập số nguyên từ 10 đến 3600"
+    "Enter an integer between 10 and 3600": "Nhập số nguyên từ 10 đến 3600",
+    "Channel Monitor": "Giám sát kênh",
+    "Channel monitor is not configured": "Chưa cấu hình giám sát kênh",
+    "Channel Monitor Link": "Liên kết giám sát kênh",
+    "Shown to all users as an embedded page under General › Channel Monitor in the sidebar. Leave empty to hide the entry.": "Hiển thị cho mọi người dùng dưới dạng trang nhúng tại Chung › Giám sát kênh trên thanh bên. Để trống để ẩn mục này."
   }
 }

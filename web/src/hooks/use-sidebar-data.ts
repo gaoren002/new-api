@@ -23,6 +23,7 @@ import {
   CreditCard,
   FileText,
   FlaskConical,
+  HeartPulse,
   Key,
   LayoutDashboard,
   ListTodo,
@@ -40,6 +41,7 @@ import {
 import { useTranslation } from 'react-i18next'
 
 import type { SidebarData } from '@/components/layout/types'
+import { useChannelMonitorLink } from '@/features/channel-monitor/hooks/use-channel-monitor-link'
 import { ROLE } from '@/lib/roles'
 
 /**
@@ -50,6 +52,7 @@ import { ROLE } from '@/lib/roles'
  */
 export function useSidebarData(): SidebarData {
   const { t } = useTranslation()
+  const monitorLink = useChannelMonitorLink()
 
   return {
     navGroups: [
@@ -105,6 +108,15 @@ export function useSidebarData(): SidebarData {
             configUrls: ['/usage-logs/drawing', '/usage-logs/task'],
             icon: ListTodo,
           },
+          ...(monitorLink
+            ? [
+                {
+                  title: t('Channel Monitor'),
+                  url: '/channel-monitor',
+                  icon: HeartPulse,
+                },
+              ]
+            : []),
         ],
       },
       {

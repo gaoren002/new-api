@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { isHttpUrl } from '@/lib/content-format'
 
 import { FormDirtyIndicator } from '../components/form-dirty-indicator'
 import { FormNavigationGuard } from '../components/form-navigation-guard'
@@ -56,6 +57,7 @@ const _systemInfoSchema = z.object({
   HomePageContent: z.string().optional(),
   general_setting: z.object({
     docs_link: z.string(),
+    monitor_link: z.string(),
   }),
   legal: z.object({
     user_agreement: z.string().optional(),
@@ -88,6 +90,7 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
     HomePageContent: normalizeValue(defaultValues.HomePageContent),
     general_setting: {
       docs_link: normalizeValue(defaultValues.general_setting?.docs_link),
+      monitor_link: normalizeValue(defaultValues.general_setting?.monitor_link),
     },
     legal: {
       user_agreement: normalizeValue(defaultValues.legal?.user_agreement),
@@ -112,6 +115,13 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
     HomePageContent: z.string().optional(),
     general_setting: z.object({
       docs_link: z.string(),
+      monitor_link: z
+        .string()
+        .trim()
+        .refine((value) => value === '' || isHttpUrl(value), {
+          error: () =>
+            t('Provide a valid URL starting with http:// or https://'),
+        }),
     }),
     legal: z.object({
       user_agreement: z.string().optional(),
@@ -248,6 +258,28 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                     </FormControl>
                     <FormDescription>
                       {t('Link to your documentation site')}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='general_setting.monitor_link'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Channel Monitor Link')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder='https://status.example.com'
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        'Shown to all users as an embedded page under General › Channel Monitor in the sidebar. Leave empty to hide the entry.'
+                      )}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

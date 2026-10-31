@@ -7388,6 +7388,10 @@
     "Circuit probe interval (seconds)": "Intervalle de test du circuit (secondes)",
     "How often a channel is tested in the background with each model whose circuit is open. One successful test restores that model.": "Fréquence à laquelle un canal est testé en arrière-plan avec chaque modèle dont le circuit est ouvert. Un test réussi rétablit ce modèle.",
     "Enter an integer between 0 and 100": "Saisissez un entier entre 0 et 100",
-    "Enter an integer between 10 and 3600": "Saisissez un entier entre 10 et 3600"
+    "Enter an integer between 10 and 3600": "Saisissez un entier entre 10 et 3600",
+    "Channel Monitor": "Surveillance des canaux",
+    "Channel monitor is not configured": "La surveillance des canaux n'est pas configurée",
+    "Channel Monitor Link": "Lien de surveillance des canaux",
+    "Shown to all users as an embedded page under General › Channel Monitor in the sidebar. Leave empty to hide the entry.": "Affichée à tous les utilisateurs comme page intégrée sous Général › Surveillance des canaux dans la barre latérale. Laissez vide pour masquer l'entrée."
   }
 }

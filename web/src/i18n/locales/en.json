@@ -7479,6 +7479,10 @@
     "Circuit probe interval (seconds)": "Circuit probe interval (seconds)",
     "How often a channel is tested in the background with each model whose circuit is open. One successful test restores that model.": "How often a channel is tested in the background with each model whose circuit is open. One successful test restores that model.",
     "Enter an integer between 0 and 100": "Enter an integer between 0 and 100",
-    "Enter an integer between 10 and 3600": "Enter an integer between 10 and 3600"
+    "Enter an integer between 10 and 3600": "Enter an integer between 10 and 3600",
+    "Channel Monitor": "Channel Monitor",
+    "Channel monitor is not configured": "Channel monitor is not configured",
+    "Channel Monitor Link": "Channel Monitor Link",
+    "Shown to all users as an embedded page under General › Channel Monitor in the sidebar. Leave empty to hide the entry.": "Shown to all users as an embedded page under General › Channel Monitor in the sidebar. Leave empty to hide the entry."
   }
 }

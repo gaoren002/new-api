@@ -7720,6 +7720,10 @@
     "Circuit probe interval (seconds)": "熔断检测间隔（秒）",
     "How often a channel is tested in the background with each model whose circuit is open. One successful test restores that model.": "熔断中的模型多久在后台用该渠道测试一次。成功一次即恢复该模型。",
     "Enter an integer between 0 and 100": "请输入 0 到 100 之间的整数",
-    "Enter an integer between 10 and 3600": "请输入 10 到 3600 之间的整数"
+    "Enter an integer between 10 and 3600": "请输入 10 到 3600 之间的整数",
+    "Channel Monitor": "渠道监控",
+    "Channel monitor is not configured": "尚未配置渠道监控",
+    "Channel Monitor Link": "渠道监控链接",
+    "Shown to all users as an embedded page under General › Channel Monitor in the sidebar. Leave empty to hide the entry.": "以内嵌页面的形式展示给所有用户，入口在侧边栏「常规 › 渠道监控」。留空则不显示该入口。"
   }
 }

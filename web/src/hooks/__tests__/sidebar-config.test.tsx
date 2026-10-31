@@ -45,12 +45,18 @@ afterEach(() => {
   useAuthStore.getState().auth.reset()
 })
 
-function sidebarFor(admin?: object, user?: object, canConfigure = true) {
+function sidebarFor(
+  admin?: object,
+  user?: object,
+  canConfigure = true,
+  status: Record<string, unknown> = {}
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
   client.setQueryData(['status'], {
     SidebarModulesAdmin: admin ? JSON.stringify(admin) : '',
+    ...status,
   })
   useAuthStore.getState().auth.setUser({
     id: 1,
@@ -179,4 +185,32 @@ describe('audit log sidebar entry', () => {
     expect(titles).not.toContain('Usage Logs')
     expect(titles).toContain('Audit Logs')
   })
+})
+
+describe('channel monitor sidebar entry', () => {
+  it('a configured http(s) monitor link adds Channel Monitor to the end of General for regular users', () => {
+    const { result } = sidebarFor(undefined, undefined, true, {
+      monitor_link: 'https://status.example.com/p/demo?embed=1',
+    })
+    const items =
+      result.current.find((group) => group.id === 'general')?.items ?? []
+    expect(items.at(-1)).toMatchObject({
+      title: 'Channel Monitor',
+      url: '/channel-monitor',
+    })
+  })
+
+  it.each(['', '   ', 'javascript:alert(1)', '/status'])(
+    'an unusable monitor link %j keeps Channel Monitor out of the sidebar',
+    (monitorLink) => {
+      const { result } = sidebarFor(undefined, undefined, true, {
+        monitor_link: monitorLink,
+      })
+      expect(
+        result.current
+          .flatMap((group) => group.items)
+          .some((item) => item.title === 'Channel Monitor')
+      ).toBe(false)
+    }
+  )
 })

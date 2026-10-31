@@ -1,6 +1,11 @@
 package operation_setting
 
-import "github.com/QuantumNous/new-api/setting/config"
+import (
+	"net/url"
+
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting/config"
+)
 
 // 额度展示类型
 const (
@@ -10,8 +15,12 @@ const (
 	QuotaDisplayTypeCustom = "CUSTOM"
 )
 
+const MonitorLinkOptionKey = "general_setting.monitor_link"
+
 type GeneralSetting struct {
-	DocsLink            string `json:"docs_link"`
+	DocsLink string `json:"docs_link"`
+	// 渠道监控页地址：控制台「常规 › 渠道监控」把它嵌入给所有用户看，留空不显示入口
+	MonitorLink         string `json:"monitor_link"`
 	PingIntervalEnabled bool   `json:"ping_interval_enabled"`
 	PingIntervalSeconds int    `json:"ping_interval_seconds"`
 	// 当前站点额度展示类型：USD / CNY / TOKENS
@@ -39,6 +48,19 @@ func init() {
 
 func GetGeneralSetting() *GeneralSetting {
 	return &generalSetting
+}
+
+// ValidateMonitorLink accepts an empty value or an absolute http(s) URL. The
+// link becomes the address of a frame every user loads in the console.
+func ValidateMonitorLink(value string) error {
+	if value == "" {
+		return nil
+	}
+	link, err := url.Parse(value)
+	if err != nil || (link.Scheme != "http" && link.Scheme != "https") || link.Host == "" {
+		return common.NewMessage("Provide a valid URL starting with http:// or https://")
+	}
+	return nil
 }
 
 // IsCurrencyDisplay 是否以货币形式展示（美元或人民币）

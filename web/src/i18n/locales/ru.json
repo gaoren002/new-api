@@ -7388,6 +7388,10 @@
     "Circuit probe interval (seconds)": "Интервал проверки разомкнутой цепи (секунды)",
     "How often a channel is tested in the background with each model whose circuit is open. One successful test restores that model.": "Как часто канал проверяется в фоне с каждой моделью, для которой цепь разомкнута. Одна успешная проверка восстанавливает эту модель.",
     "Enter an integer between 0 and 100": "Введите целое число от 0 до 100",
-    "Enter an integer between 10 and 3600": "Введите целое число от 10 до 3600"
+    "Enter an integer between 10 and 3600": "Введите целое число от 10 до 3600",
+    "Channel Monitor": "Мониторинг каналов",
+    "Channel monitor is not configured": "Мониторинг каналов не настроен",
+    "Channel Monitor Link": "Ссылка на мониторинг каналов",
+    "Shown to all users as an embedded page under General › Channel Monitor in the sidebar. Leave empty to hide the entry.": "Показывается всем пользователям как встроенная страница в разделе «Общие › Мониторинг каналов» боковой панели. Оставьте пустым, чтобы скрыть пункт."
   }
 }

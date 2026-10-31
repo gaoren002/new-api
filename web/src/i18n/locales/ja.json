@@ -7388,6 +7388,10 @@
     "Circuit probe interval (seconds)": "遮断中の検査間隔（秒）",
     "How often a channel is tested in the background with each model whose circuit is open. One successful test restores that model.": "遮断中のモデルについて、チャネルをそのモデルでバックグラウンドテストする間隔です。1 回成功するとそのモデルが復帰します。",
     "Enter an integer between 0 and 100": "0 から 100 の整数を入力してください",
-    "Enter an integer between 10 and 3600": "10 から 3600 の整数を入力してください"
+    "Enter an integer between 10 and 3600": "10 から 3600 の整数を入力してください",
+    "Channel Monitor": "チャネル監視",
+    "Channel monitor is not configured": "チャネル監視が設定されていません",
+    "Channel Monitor Link": "チャネル監視リンク",
+    "Shown to all users as an embedded page under General › Channel Monitor in the sidebar. Leave empty to hide the entry.": "サイドバーの「一般 › チャネル監視」に埋め込みページとして全ユーザーに表示されます。空のままにすると項目を表示しません。"
   }
 }
