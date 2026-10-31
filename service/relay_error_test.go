@@ -300,6 +300,9 @@ func TestRecordChannelHealthCountsOnlyChannelFailures(t *testing.T) {
 	upstream := func(status int) *types.NewAPIError {
 		return types.NewOpenAIError(errors.New("upstream"), types.ErrorCodeBadResponseStatusCode, status)
 	}
+	refusal := func(message string) *types.NewAPIError {
+		return types.NewOpenAIError(errors.New(message), types.ErrorCodeBadResponseStatusCode, http.StatusBadRequest)
+	}
 	newContext := func(abandoned bool) *gin.Context {
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
 		c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
@@ -322,9 +325,17 @@ func TestRecordChannelHealthCountsOnlyChannelFailures(t *testing.T) {
 		{name: "first token timeout", err: types.NewOpenAIError(errors.New("no data"), types.ErrorCodeFirstTokenTimeout, http.StatusGatewayTimeout), counts: true},
 		{name: "transport failure", err: types.NewError(errors.New("dial tcp: i/o timeout"), types.ErrorCodeDoRequestFailed), counts: true},
 		{name: "channel error", err: types.NewError(errors.New("no key"), types.ErrorCodeChannelNoAvailableKey), counts: true},
+		{name: "model the channel does not serve", err: upstream(http.StatusNotFound), counts: true},
+		{name: "upstream out of balance", err: upstream(http.StatusPaymentRequired), counts: true},
+		{name: "endpoint the upstream does not allow", err: upstream(http.StatusMethodNotAllowed), counts: true},
+		{name: "model unknown to the upstream router", err: refusal("unknown provider for model gpt-6-luna"), counts: true},
+		{name: "model the account type cannot use", err: refusal("The 'gpt-5.4-mini' model is not supported when using Codex with a ChatGPT account."), counts: true},
+		{name: "model an upstream new-api has not priced", err: refusal("模型 gpt-5.6-luna 的价格尚未由管理员配置，暂时无法使用，请联系站点管理员开启该模型；Model gpt-5.6-luna has not been priced by the administrator yet."), counts: true},
 		{name: "upstream 400", err: upstream(http.StatusBadRequest), counts: false},
-		{name: "model the channel does not serve", err: upstream(http.StatusNotFound), counts: false},
+		{name: "payload too large", err: upstream(http.StatusRequestEntityTooLarge), counts: false},
+		{name: "outdated client", err: upstream(http.StatusUpgradeRequired), counts: false},
 		{name: "gateway rejection", err: types.NewError(errors.New("bad json"), types.ErrorCodeJsonMarshalFailed), counts: false},
+		{name: "model the gateway itself has not priced", err: types.NewError(errors.New("Model gpt-5.6-luna has not been priced by the administrator yet."), types.ErrorCodeModelPriceError, types.ErrOptionWithSkipRetry()), counts: false},
 		{name: "non-retryable upstream error", err: types.NewOpenAIError(errors.New("blocked"), types.ErrorCodeBadResponseStatusCode, http.StatusInternalServerError, types.ErrOptionWithSkipRetry()), counts: false},
 		{name: "request the client abandoned", err: upstream(http.StatusBadGateway), abandoned: true, counts: false},
 	} {

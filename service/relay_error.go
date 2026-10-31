@@ -2,6 +2,8 @@ package service
 
 import (
 	"net/http"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -102,11 +104,26 @@ func RecordChannelHealth(c *gin.Context, channelID int, modelName string, err *t
 	}
 }
 
+// upstreamModelRefusals are answers, usually a 400, with which an upstream says
+// it cannot serve the requested model at all: its router does not know the
+// model, the account type behind the channel cannot use it, or an upstream
+// new-api has not priced it. Matched in lower case.
+var upstreamModelRefusals = []string{
+	"unknown provider for model",
+	"is not supported when using codex with a chatgpt account",
+	"has not been priced by the administrator",
+	"的价格尚未由管理员配置",
+	"的價格尚未由管理員設定",
+}
+
 // isChannelFailure reports whether a failed attempt counts against the
-// channel: timeouts, transport and channel errors, and upstream 401, 403, 408,
-// 429 or 5xx answers. A request the client abandoned does not count, nor one
-// the gateway or the upstream rejected as invalid, such as a 400 or a 404 for
-// a model the channel does not serve.
+// channel for the model: timeouts, transport and channel errors, upstream 401,
+// 402, 403, 404, 405, 408, 429 or 5xx answers, and answers saying the upstream
+// cannot serve the model. Circuits are kept per channel and model, so a model
+// the upstream refuses says nothing about the channel's other models. A
+// request the client abandoned does not count, nor one the gateway or the
+// upstream rejected for the request itself, such as a 400 for bad parameters,
+// a 413 for a body too large or a 426 for an outdated client.
 func isChannelFailure(c *gin.Context, err *types.NewAPIError) bool {
 	if c != nil && c.Request != nil && c.Request.Context().Err() != nil {
 		return false
@@ -121,9 +138,19 @@ func isChannelFailure(c *gin.Context, err *types.NewAPIError) bool {
 	if types.IsSkipRetryError(err) || err.GetErrorType() == types.ErrorTypeNewAPIError {
 		return false
 	}
-	code := err.StatusCode
-	return code == http.StatusUnauthorized || code == http.StatusForbidden || code == http.StatusRequestTimeout ||
-		code == http.StatusTooManyRequests || code >= http.StatusInternalServerError
+	switch code := err.StatusCode; code {
+	case http.StatusUnauthorized, http.StatusPaymentRequired, http.StatusForbidden, http.StatusNotFound,
+		http.StatusMethodNotAllowed, http.StatusRequestTimeout, http.StatusTooManyRequests:
+		return true
+	default:
+		if code >= http.StatusInternalServerError {
+			return true
+		}
+	}
+	message := strings.ToLower(err.Error())
+	return slices.ContainsFunc(upstreamModelRefusals, func(refusal string) bool {
+		return strings.Contains(message, refusal)
+	})
 }
 
 func ShouldRetryRelayError(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) bool {
